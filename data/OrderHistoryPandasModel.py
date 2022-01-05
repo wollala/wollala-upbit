@@ -3,7 +3,7 @@ from PySide6.QtCore import QAbstractTableModel, Qt, QModelIndex
 from PySide6.QtGui import QBrush, QColor
 
 
-class PandasModel(QAbstractTableModel):
+class OrderHistoryPandasModel(QAbstractTableModel):
     """A model to interface a Qt view with pandas dataframe """
 
     def __init__(self, dataframe: pd.DataFrame, parent=None):

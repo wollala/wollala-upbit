@@ -6,10 +6,8 @@ from PySide6 import QtWidgets, QtGui, QtCore
 from upbit.client import Upbit
 
 from UserSetting import UserSetting
-from dialog.APIKeyInputDialog import APIKeyInputDialog
-from dialog.TickerSelectionDialog import TickerSelectionDialog
-from widget.AccountInfoWidget import AccountInfoWidget
-from widget.TransactionHistoryWidget import TransactionHistoryWidget
+from dialog import APIKeyInputDialog, ProgramInfoDialog, TickerSelectionDialog
+from widget import AccountInfoWidget, TransactionHistoryWidget
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -52,21 +50,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.transaction_history_widget = TransactionHistoryWidget(self.krw_markets, self.btc_markets)
 
         # 계산결과 출력 Widget
-        self.calculate_result_widget = QtWidgets.QTextBrowser()
-        self.calculate_result_widget.setStyleSheet(
+        self.calculate_console_widget = QtWidgets.QTextBrowser()
+        self.calculate_console_widget.setStyleSheet(
             "background-color: rgb(34, 40, 64);"
             "color: rgb(157, 159, 170)"
         )
-        self.calculate_result_widget.setAcceptRichText(True)
-        self.account_info_widget.account_info_tableview.sumFinished.connect(self.append_krw_sum)
-        self.transaction_history_widget.order_history_tableview.sumFinished.connect(self.append_sum)
-        self.transaction_history_widget.order_history_tableview.meanFinished.connect(self.append_mean)
-        self.transaction_history_widget.order_history_tableview.bidMinusAskFinished.connect(self.append_bid_minus_ask)
-        self.transaction_history_widget.order_history_tableview.askMinusBidFinished.connect(self.append_ask_minus_bid)
+        self.calculate_console_widget.setAcceptRichText(True)
+        self.account_info_widget.account_info_tableview.sumFinished.connect(self.krw_sum_finished)
+        self.transaction_history_widget.order_history_tableview.sumFinished.connect(self.sum_finished)
+        self.transaction_history_widget.order_history_tableview.meanFinished.connect(self.mean_finished)
+        self.transaction_history_widget.order_history_tableview.bidMinusAskFinished.connect(self.bid_minus_ask_finished)
+        self.transaction_history_widget.order_history_tableview.askMinusBidFinished.connect(self.ask_minus_bid_finished)
 
-        # tabWidget
-        main_widget = QtWidgets.QFrame()
-
+        # splitter widget
         top_frame = QtWidgets.QFrame(self)
         top_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         top_layout = QtWidgets.QHBoxLayout()
@@ -82,7 +78,7 @@ class MainWindow(QtWidgets.QMainWindow):
         bottom_frame = QtWidgets.QFrame(self)
         bottom_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         bottom_layout = QtWidgets.QHBoxLayout()
-        bottom_layout.addWidget(self.calculate_result_widget)
+        bottom_layout.addWidget(self.calculate_console_widget)
         bottom_frame.setLayout(bottom_layout)
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
@@ -92,84 +88,69 @@ class MainWindow(QtWidgets.QMainWindow):
         splitter.setHandleWidth(5)
         splitter.setSizes([300, 500, 200])
 
+        # tab widget
+        main_widget = QtWidgets.QFrame()
         main_widget_layout = QtWidgets.QHBoxLayout()
         main_widget_layout.addWidget(splitter)
         main_widget.setLayout(main_widget_layout)
+
         tab_widget = QtWidgets.QTabWidget()
         tab_widget.addTab(main_widget, "투자내역")
 
         # menu bar
         bar = self.menuBar()
 
-        ## 설정 메뉴
+        # 설정 메뉴
         setting_menu = bar.addMenu("설정")
 
         api_key_menu_action = QtGui.QAction("API key 입력", self)
         api_key_menu_action.setStatusTip("거래내역을 불러오기 위한 Upbit API key 입력")
-        api_key_menu_action.triggered.connect(self.on_api_key_menu_clicked)
+        api_key_menu_action.triggered.connect(self.api_key_menu_clicked)
         setting_menu.addAction(api_key_menu_action)
 
         coin_select_menu_action = QtGui.QAction("코인 선택", self)
         coin_select_menu_action.setStatusTip("거래내역을 불러오고자 하는 코인 선택")
-        coin_select_menu_action.triggered.connect(self.on_coin_select_menu_clicked)
+        coin_select_menu_action.triggered.connect(self.coin_select_menu_clicked)
         setting_menu.addAction(coin_select_menu_action)
 
-        ## 도움말 메뉴
+        # 도움말 메뉴
         help_menu = bar.addMenu("도움말")
 
         info_menu_action = QtGui.QAction("정보", self)
-        info_menu_action.setStatusTip("Wollala Upbit 정보")
-        info_menu_action.triggered.connect(self.on_info_menu_clicked)
+        info_menu_action.setStatusTip("wollala-upbit 정보")
+        info_menu_action.triggered.connect(self.info_menu_clicked)
         help_menu.addAction(info_menu_action)
 
-        # 코인 선택 메뉴 Dialog
+        # 코인 선택 메뉴 dialog
         self.ticker_selection_dialog = TickerSelectionDialog(self.krw_markets, self.btc_markets)
         self.ticker_selection_dialog.hide()
 
-        # API key 입력 Dialog
+        # API key 입력 dialog
         self.api_key_input_dialog = APIKeyInputDialog()
         self.api_key_input_dialog.hide()
 
         # 프로그램 정보 dialog
-        self.program_info_dialog = QtWidgets.QMessageBox(self)
-        self.program_info_dialog.setStyleSheet("* {margin-left: 0; margin-right: 15; }")
-        self.program_info_dialog.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)  # noqa
-        self.program_info_dialog.setWindowTitle("프로그램 정보")
-        self.program_info_dialog.setText(
-            "<p style='text-align: center;'><img src='qrc://Info.png' alt='' width='42' height='42'></p>"
-            "<p style='text-align: center;'><strong>Wollala Upbit</strong></p>"
-            "<p style='text-align: center;'>Version 0.0.1 (Beta)</p>"
-            "<p style='text-align: center;'>by Wollala (<a href='mailto:wollala.zip@gmail.com'>wollala.zip@gmail.com</a>)</p>"  # noqa 
-            "<p style='text-align: center;'>&nbsp;</p>"
-            "<p style='text-align: center;'>이 프로그램은 어떠한 형태의 보증도 제공하지 않습니다.</p>"
-            "<p style='text-align: center;'>발생하는 모든 문제에 대한 책임은 이 프로그램의 사용자에게 있습니다.</p>"
-            "<p style='text-align: center;'>&nbsp;</p>"
-            "<p style='text-align: center;'><b>Support</b></p>"
-            "<p style='text-align: center;'>Bug report: <a href='mailto:wollala.zip@gmail.com'>wollala.zip@gmail.com</a></p>"  # noqa
-            "<p style='text-align: center;'>&nbsp;</p>"
-            "<p style='text-align: center;'><b>Donation</b></p>"
-            "<p style='text-align: center;'><b>BTC</b>: 34EvTZBAPqT7SviBLggjn4PV9qZG4PVcFp</p>"
-            "<p style='text-align: center;'><b>ETH</b>: 0xc281565c8f5fe037570aac45021db4897fd6ce19</p>"
-            "<p style='text-align: center;'>&nbsp;</p>"
-            "<p style='text-align: center;'>Copyright &copy; Wollala, 2021&ndash;2022. All rights reserved.</p>"
-        )
-        self.program_info_dialog.hide()
+        self.program_info_dialog = ProgramInfoDialog(self)
 
         self.statusBar()
         self.setCentralWidget(tab_widget)
-        self.setWindowTitle('Wollala Upbit')
+        self.setWindowTitle('wollala-upbit')
         self.resize(1240, 1000)
 
-    def on_api_key_menu_clicked(self, s):
+    @QtCore.Slot()
+    def api_key_menu_clicked(self, s):
         self.api_key_input_dialog.show()
 
-    def on_coin_select_menu_clicked(self, s):
+    @QtCore.Slot()
+    def coin_select_menu_clicked(self, s):
         self.ticker_selection_dialog.show()
 
-    def on_info_menu_clicked(self, s):
+    @QtCore.Slot()
+    def info_menu_clicked(self, s):
         self.program_info_dialog.show()
 
-    def append_krw_sum(self, df, result):
+    @QtCore.Slot()
+    def krw_sum_finished(self, df, result):
         df = df.reset_index(drop=True)
         result_str = '<b><font color="#f3f3f4">' + "{0:,.0f}".format(result) + "</font></b>"
         format_str = ''
@@ -179,10 +160,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 format_str = format_str + ' + ' + "{0:,.0f}".format(df.loc[idx])
         format_str = format_str[3:]
         result_str = result_str + " = " + format_str
-        self.calculate_result_widget.append("합 계산 결과")
-        self.calculate_result_widget.append(result_str)
+        self.calculate_console_widget.append("합 계산 결과")
+        self.calculate_console_widget.append(result_str)
 
-    def append_sum(self, df, result):
+    @QtCore.Slot()
+    def sum_finished(self, df, result):
         df = df.reset_index(drop=True)
         result_str = '<b><font color="#f3f3f4">' + "{0:,.8f}".format(result) + "</font></b>"
         format_str = ''
@@ -192,10 +174,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 format_str = format_str + ' + ' + "{0:,.8f}".format(df.loc[idx])
         format_str = format_str[3:]
         result_str = result_str + " = " + format_str
-        self.calculate_result_widget.append("합 계산 결과")
-        self.calculate_result_widget.append(result_str)
+        self.calculate_console_widget.append("합 계산 결과")
+        self.calculate_console_widget.append(result_str)
 
-    def append_mean(self, trading_volume_df, trading_price_df, result):
+    @QtCore.Slot()
+    def mean_finished(self, trading_volume_df, trading_price_df, result):
         trading_volume_df = trading_volume_df.reset_index(drop=True)
         trading_price_df = trading_price_df.reset_index(drop=True)
         result_str = '<b><font color="#f3f3f4">' + "{0:,.8f}".format(result) + "</font></b>"
@@ -216,10 +199,11 @@ class MainWindow(QtWidgets.QMainWindow):
                      '<b><font color="#cecfd5">(</fond></b>' + \
                      format_str1 + '<b><font color="#cecfd5">)</fond></b>'
 
-        self.calculate_result_widget.append("평단가 계산 결과")
-        self.calculate_result_widget.append(result_str)
+        self.calculate_console_widget.append("평단가 계산 결과")
+        self.calculate_console_widget.append(result_str)
 
-    def append_ask_minus_bid(self, ask_df, bid_df, result):
+    @QtCore.Slot()
+    def ask_minus_bid_finished(self, ask_df, bid_df, result):
         ask_df = ask_df.reset_index(drop=True)
         bid_df = bid_df.reset_index(drop=True)
         result_str = '<b><font color="#f3f3f4">' + "{0:,.8f}".format(result) + "</font></b>"
@@ -238,10 +222,11 @@ class MainWindow(QtWidgets.QMainWindow):
         format_str1 = format_str1[3:]
         format_str1 = '<b><font color="#cecfd5">(</fond></b>' + format_str1 + '<b><font color="#cecfd5">)</fond></b>'
         result_str = result_str + " = " + format_str0 + " - " + format_str1
-        self.calculate_result_widget.append("매도 - 매수 계산 결과")
-        self.calculate_result_widget.append(result_str)
+        self.calculate_console_widget.append("매도 - 매수 계산 결과")
+        self.calculate_console_widget.append(result_str)
 
-    def append_bid_minus_ask(self, bid_df, ask_df, result):
+    @QtCore.Slot()
+    def bid_minus_ask_finished(self, bid_df, ask_df, result):
         ask_df = ask_df.reset_index(drop=True)
         bid_df = bid_df.reset_index(drop=True)
         result_str = '<b><font color="#f3f3f4">' + "{0:,.8f}".format(result) + "</font></b>"
@@ -260,8 +245,8 @@ class MainWindow(QtWidgets.QMainWindow):
         format_str1 = format_str1[3:]
         format_str1 = '<b><font color="#cecfd5">(</fond></b>' + format_str1 + '<b><font color="#cecfd5">)</fond></b>'
         result_str = result_str + " = " + format_str1 + " - " + format_str0
-        self.calculate_result_widget.append("매도 - 매수 계산 결과")
-        self.calculate_result_widget.append(result_str)
+        self.calculate_console_widget.append("매도 - 매수 계산 결과")
+        self.calculate_console_widget.append(result_str)
 
 
 app = QtWidgets.QApplication([])

@@ -5,10 +5,9 @@ from PySide6 import QtCore, QtWidgets, QtGui
 from upbit.client import Upbit
 
 from UserSetting import UserSetting
-from data.OrderHistoryPandasModel import PandasModel
+from data.OrderHistoryPandasModel import OrderHistoryPandasModel
 from util.Thread import Worker
-from widget.CalenderWidget import CalenderWidget
-from widget.OrderHistoryTableView import OrderHistoryTableView
+from widget import CalenderWidget, OrderHistoryTableView
 from widget.WaitingSpinner import WaitingSpinner
 
 
@@ -22,7 +21,7 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         self.__from_date = value
         if self.order_history_df is not None:
             df_for_model = self.filtering_df(self.order_history_df)
-            model = PandasModel(df_for_model)
+            model = OrderHistoryPandasModel(df_for_model)
             self.order_history_tableview.setModel(model)
 
     @property
@@ -34,7 +33,7 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         self.__to_date = value
         if self.order_history_df is not None:
             df_for_model = self.filtering_df(self.order_history_df)
-            model = PandasModel(df_for_model)
+            model = OrderHistoryPandasModel(df_for_model)
             self.order_history_tableview.setModel(model)
 
     def __init__(self, krw_markets, btc_markets):
@@ -268,7 +267,7 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
     def ticker_filter_combobox_currentIndex_changed(self):  # noqa
         if self.order_history_df is not None:
             df_for_model = self.filtering_df(self.order_history_df)
-            model = PandasModel(df_for_model)
+            model = OrderHistoryPandasModel(df_for_model)
             self.order_history_tableview.setModel(model)
 
     @QtCore.Slot()
@@ -295,7 +294,7 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
     def side_btn_clicked(self, btn):  # noqa
         if self.order_history_df is not None:
             df_for_model = self.filtering_df(self.order_history_df)
-            model = PandasModel(df_for_model)
+            model = OrderHistoryPandasModel(df_for_model)
             self.order_history_tableview.setModel(model)
 
     @QtCore.Slot(int)
@@ -320,7 +319,7 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
 
         if self.order_history_df is not None:
             df_for_model = self.filtering_df(self.order_history_df)
-            model = PandasModel(df_for_model)
+            model = OrderHistoryPandasModel(df_for_model)
             self.order_history_tableview.setModel(model)
 
     @QtCore.Slot(int)
@@ -461,7 +460,7 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
     def update_table_model(self, df):
         self.order_history_df = df
         df_for_model = self.filtering_df(self.order_history_df)
-        model = PandasModel(df_for_model)
+        model = OrderHistoryPandasModel(df_for_model)
         self.order_history_tableview.setModel(model)
 
     def filtering_df(self, df):

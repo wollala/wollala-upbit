@@ -3,11 +3,10 @@ from PySide6 import QtCore, QtWidgets, QtGui
 from upbit.client import Upbit
 
 from UserSetting import UserSetting
-from data.AccountInfoPandasModel import AccountInfoPandasModel
-from data.SummaryPandasModel import PandasModel
+from data import AccountInfoPandasModel, SummaryPandasModel
 from util.Thread import Worker
+from widget import AccountInfoTableView
 from widget.WaitingSpinner import WaitingSpinner
-from widget.AccountInfoTableView import AccountInfoTableView
 
 
 class AccountInfoWidget(QtWidgets.QWidget):
@@ -52,7 +51,8 @@ class AccountInfoWidget(QtWidgets.QWidget):
         # TableView
         self.account_info_tableview = AccountInfoTableView()
         account_info_header_model = QtGui.QStandardItemModel()
-        account_info_header_model.setHorizontalHeaderLabels(['화폐종류', '보유수량', '매수평균가', '현재가', '매수금액', '평가금액', '평가손익', '수익률'])
+        account_info_header_model.setHorizontalHeaderLabels(
+            ['화폐종류', '보유수량', '매수평균가', '현재가', '매수금액', '평가금액', '평가손익', '수익률'])
         self.account_info_tableview.verticalHeader().setHidden(True)
         self.account_info_tableview.setModel(account_info_header_model)
         self.account_info_tableview.horizontalHeader().setStretchLastSection(True)
@@ -145,7 +145,7 @@ class AccountInfoWidget(QtWidgets.QWidget):
             self.summary_df['수익률'] = self.summary_df["평가손익"] / self.summary_df["총매수"] * 100
             self.summary_df = self.summary_df.reindex(
                 columns=['보유KRW', '총매수', '투자비율', '총 보유자산', '총평가', '평가손익', '수익률'])
-            self.summary_tableview.setModel(PandasModel(self.summary_df))
+            self.summary_tableview.setModel(SummaryPandasModel(self.summary_df))
             self.account_info_tableview.setModel(AccountInfoPandasModel(self.account_info_df))
             self.stop_spinner()
 
