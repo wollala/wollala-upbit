@@ -1,6 +1,9 @@
 __pycache__
 .DS_Store
-test.py
 .venv/
-config.json
 .idea/
+build/
+dist/
+test.py
+config.json
+main.spec
