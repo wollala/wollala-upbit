@@ -8,25 +8,25 @@ class OrderHistoryTableView(QtWidgets.QTableView):
     bidMinusAskFinished = QtCore.Signal(pd.DataFrame, pd.DataFrame, float)
     askMinusBidFinished = QtCore.Signal(pd.DataFrame, pd.DataFrame, float)
 
-    def __init__(self):
-        super(OrderHistoryTableView, self).__init__()
-        self.sum_action = QtGui.QAction('합', self)
+    def __init__(self, parent=None):
+        super(OrderHistoryTableView, self).__init__(parent=parent)
+        self.sum_action = QtGui.QAction('합', parent=self)
         self.sum_action.setStatusTip('선택된 Cell 값들을 더합니다.')
         self.sum_action.triggered.connect(self.sum)
 
-        self.mean_action = QtGui.QAction('평균단가', self)
+        self.mean_action = QtGui.QAction('평균단가', parent=self)
         self.mean_action.setStatusTip('평균단가를 구합니다.')
         self.mean_action.triggered.connect(self.mean)
 
-        self.bid_minus_ask_action = QtGui.QAction('매수 - 매도', self)
+        self.bid_minus_ask_action = QtGui.QAction('매수 - 매도', parent=self)
         self.bid_minus_ask_action.setStatusTip('선택된 Cell 값들 중 매수영역의 값과 매도영역의 값의 차를 구합니다.')
         self.bid_minus_ask_action.triggered.connect(self.bid_minus_ask)
 
-        self.ask_minus_bid_action = QtGui.QAction('매도 - 매수', self)
+        self.ask_minus_bid_action = QtGui.QAction('매도 - 매수', parent=self)
         self.ask_minus_bid_action.setStatusTip('선택된 Cell 값들 중 매도영역의 값과 매수영역의 값의 차를 구합니다.')
         self.ask_minus_bid_action.triggered.connect(self.ask_minus_bid)
 
-        self.menu = QtWidgets.QMenu(self)
+        self.menu = QtWidgets.QMenu(parent=self)
 
     def contextMenuEvent(self, event):
         self.menu.clear()

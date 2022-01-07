@@ -3,7 +3,7 @@ from PySide6.QtCore import QAbstractTableModel, Qt, QModelIndex
 from PySide6.QtGui import QBrush, QColor
 
 
-class PandasModel(QAbstractTableModel):
+class OrderHistoryPandasModel(QAbstractTableModel):
     """A model to interface a Qt view with pandas dataframe """
 
     def __init__(self, dataframe: pd.DataFrame, parent=None):
@@ -54,7 +54,7 @@ class PandasModel(QAbstractTableModel):
         elif role == Qt.DisplayRole:
             target_data = self.df.iloc[index.row(), index.column()]
 
-            if index.column() == 0:  # 날짜
+            if index.column() == 0:  # 주문시간
                 return target_data.strftime("%Y/%m/%d %H:%M:%S")
             elif index.column() == 3:  # 거래수량
                 return "{0:,.8f}".format(target_data)
