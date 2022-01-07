@@ -1,4 +1,3 @@
-import re
 import sys
 
 import pandas as pd
@@ -13,44 +12,34 @@ from widget import AccountInfoWidget, TransactionHistoryWidget
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
-        self.user_setting = UserSetting()
-        self.upbit_settings = self.user_setting.upbit
+        upbit_config = UserSetting().upbit
+        self.upbit_client = Upbit(upbit_config["access_key"], upbit_config["secret_key"])
 
-        upbit = Upbit()
-        tickers = upbit.Market.Market_info_all()['result']
-        for i in tickers:
-            i['checked'] = False
-        self.krw_markets = [item for item in tickers if 'KRW-' in item['market']]
-        self.krw_markets = sorted(self.krw_markets, key=lambda item: item["korean_name"])
-        for name in self.upbit_settings['transaction_history']['selected_krw_markets']:
-            # 괄호 안의 문자 찾기 ex) 비트코인 (KRW-BTC) 에서 KRW-BTC 찾기
-            ticker = re.findall('\((KRW-[^)]+|BTC-[^)]+)\)', name)[0]  # noqa
-            for market in self.krw_markets:
-                # currency(coin code) 추가 (ETH, BTC, XRP..)
-                market["currency"] = market["market"].split('-')[1]
+        api_key_test_response = self.upbit_client.APIKey.APIKey_info()['response']
 
-                if market['market'] == ticker:
-                    market['checked'] = True
-        self.btc_markets = [item for item in tickers if 'BTC-' in item['market']]
-        self.btc_markets = sorted(self.btc_markets, key=lambda item: item["korean_name"])
-        for name in self.upbit_settings['transaction_history']['selected_btc_markets']:
-            # 괄호 안의 문자 찾기 ex) 비트코인 (KRW-BTC) 에서 KRW-BTC 찾기
-            ticker = re.findall('\((KRW-[^)]+|BTC-[^)]+)\)', name)[0]  # noqa
-            for market in self.btc_markets:
-                # currency(coin code) 추가 (ETH, BTC, XRP..)
-                market["currency"] = market["market"].split('-')[1]
+        if not api_key_test_response:
+            QtWidgets.QMessageBox.information(self, 'wollala-upbit 메시지',
+                                              'Upbit 서버의 응답이 없습니다.')
+        elif not api_key_test_response['ok']:
+            QtWidgets.QMessageBox.information(self, 'wollala-upbit 메시지',
+                                              'upbit API key를 설정에서 등록 후 사용하세요.')
 
-                if market['market'] == ticker:
-                    market['checked'] = True
+        self.get_market_all_info_by_upbit()
 
         # Account Info Widget
-        self.account_info_widget = AccountInfoWidget(self.krw_markets, self.btc_markets)
+        self.account_info_widget = AccountInfoWidget(parent=self,
+                                                     upbit_client=self.upbit_client,
+                                                     krw_markets=self.krw_markets,
+                                                     btc_markets=self.btc_markets)
 
         # 거래내역 관련 Widget
-        self.transaction_history_widget = TransactionHistoryWidget(self.krw_markets, self.btc_markets)
+        self.transaction_history_widget = TransactionHistoryWidget(parent=self,
+                                                                   upbit_client=self.upbit_client,
+                                                                   krw_markets=self.krw_markets,
+                                                                   btc_markets=self.btc_markets)
 
         # 계산결과 출력 Widget
-        self.calculate_console_widget = QtWidgets.QTextBrowser()
+        self.calculate_console_widget = QtWidgets.QTextBrowser(parent=self)
         self.calculate_console_widget.setStyleSheet(
             "background-color: rgb(34, 40, 64);"
             "color: rgb(157, 159, 170)"
@@ -63,25 +52,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.transaction_history_widget.order_history_tableview.askMinusBidFinished.connect(self.ask_minus_bid_finished)
 
         # splitter widget
-        top_frame = QtWidgets.QFrame(self)
+        top_frame = QtWidgets.QFrame(parent=self)
         top_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         top_layout = QtWidgets.QHBoxLayout()
         top_layout.addWidget(self.account_info_widget)
         top_frame.setLayout(top_layout)
 
-        mid_frame = QtWidgets.QFrame(self)
+        mid_frame = QtWidgets.QFrame(parent=self)
         mid_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         mid_layout = QtWidgets.QHBoxLayout()
         mid_layout.addWidget(self.transaction_history_widget)
         mid_frame.setLayout(mid_layout)
 
-        bottom_frame = QtWidgets.QFrame(self)
+        bottom_frame = QtWidgets.QFrame(parent=self)
         bottom_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         bottom_layout = QtWidgets.QHBoxLayout()
         bottom_layout.addWidget(self.calculate_console_widget)
         bottom_frame.setLayout(bottom_layout)
 
-        splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
+        splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical, parent=self)
         splitter.addWidget(top_frame)
         splitter.addWidget(mid_frame)
         splitter.addWidget(bottom_frame)
@@ -89,13 +78,21 @@ class MainWindow(QtWidgets.QMainWindow):
         splitter.setSizes([300, 500, 200])
 
         # tab widget
-        main_widget = QtWidgets.QFrame()
+        main_widget = QtWidgets.QFrame(parent=self)
         main_widget_layout = QtWidgets.QHBoxLayout()
         main_widget_layout.addWidget(splitter)
         main_widget.setLayout(main_widget_layout)
 
-        tab_widget = QtWidgets.QTabWidget()
+        tab_widget = QtWidgets.QTabWidget(parent=self)
         tab_widget.addTab(main_widget, "투자내역")
+
+        # Progress Bar
+        self.progressbar = QtWidgets.QProgressBar(parent=self)
+        self.progressbar.setTextVisible(True)
+        self.progressbar.setAlignment(QtCore.Qt.AlignCenter)
+        self.progressbar.setMaximumWidth(500)
+        self.statusBar().addPermanentWidget(self.progressbar)
+        self.transaction_history_widget.loading_progress_order_history_changed.connect(self.update_progressbar)
 
         # menu bar
         bar = self.menuBar()
@@ -103,47 +100,36 @@ class MainWindow(QtWidgets.QMainWindow):
         # 설정 메뉴
         setting_menu = bar.addMenu("설정")
 
-        api_key_menu_action = QtGui.QAction("API key 입력", self)
+        api_key_menu_action = QtGui.QAction("API key 입력", parent=self)
         api_key_menu_action.setStatusTip("거래내역을 불러오기 위한 Upbit API key 입력")
         api_key_menu_action.triggered.connect(self.api_key_menu_clicked)
         setting_menu.addAction(api_key_menu_action)
 
-        coin_select_menu_action = QtGui.QAction("코인 선택", self)
-        coin_select_menu_action.setStatusTip("거래내역을 불러오고자 하는 코인 선택")
-        coin_select_menu_action.triggered.connect(self.coin_select_menu_clicked)
-        setting_menu.addAction(coin_select_menu_action)
-
         # 도움말 메뉴
         help_menu = bar.addMenu("도움말")
 
-        info_menu_action = QtGui.QAction("정보", self)
+        info_menu_action = QtGui.QAction("정보", parent=self)
         info_menu_action.setStatusTip("wollala-upbit 정보")
         info_menu_action.triggered.connect(self.info_menu_clicked)
         help_menu.addAction(info_menu_action)
 
-        # 코인 선택 메뉴 dialog
-        self.ticker_selection_dialog = TickerSelectionDialog(self.krw_markets, self.btc_markets)
-        self.ticker_selection_dialog.hide()
-
         # API key 입력 dialog
-        self.api_key_input_dialog = APIKeyInputDialog()
+        self.api_key_input_dialog = APIKeyInputDialog(parent=self)
+        self.api_key_input_dialog.upbit_client_updated.connect(self.update_upbit_client)
         self.api_key_input_dialog.hide()
 
         # 프로그램 정보 dialog
-        self.program_info_dialog = ProgramInfoDialog(self)
+        self.program_info_dialog = ProgramInfoDialog(parent=self)
 
         self.statusBar()
         self.setCentralWidget(tab_widget)
         self.setWindowTitle('wollala-upbit')
         self.resize(1240, 1000)
+        self.setMinimumWidth(1240)
 
     @QtCore.Slot()
     def api_key_menu_clicked(self, s):
         self.api_key_input_dialog.show()
-
-    @QtCore.Slot()
-    def coin_select_menu_clicked(self, s):
-        self.ticker_selection_dialog.show()
 
     @QtCore.Slot()
     def info_menu_clicked(self, s):
@@ -248,6 +234,38 @@ class MainWindow(QtWidgets.QMainWindow):
         self.calculate_console_widget.append("매도 - 매수 계산 결과")
         self.calculate_console_widget.append(result_str)
 
+    @QtCore.Slot()
+    def update_progressbar(self, v):
+        if v == 100:
+            self.progressbar.setValue(v)
+            self.progressbar.setFormat(f'거래내역을 모두 가져왔어요!')
+            self.progressbar.setEnabled(False)
+        else:
+            self.progressbar.setEnabled(True)
+            self.progressbar.setValue(v)
+            self.progressbar.setFormat(f'거래내역을 가져오는 중..({self.progressbar.value()} %)')
+
+    @QtCore.Slot()
+    def update_upbit_client(self, upbit_client):
+        self.upbit_client = upbit_client
+        self.get_market_all_info_by_upbit()
+
+        self.account_info_widget.upbit_client = self.upbit_client
+        self.account_info_widget.krw_markets = self.krw_markets
+        self.account_info_widget.btc_markets = self.btc_markets
+
+        self.transaction_history_widget.upbit_client = self.upbit_client
+        self.transaction_history_widget.krw_markets = self.krw_markets
+        self.transaction_history_widget.btc_markets = self.btc_markets
+
+    def get_market_all_info_by_upbit(self):
+        market_list = self.upbit_client.Market.Market_info_all()['result']
+        for market in market_list:
+            market["currency"] = market["market"].split('-')[1]
+        self.krw_markets = [item for item in market_list if 'KRW-' in item['market']]
+        self.krw_markets = sorted(self.krw_markets, key=lambda item: item["korean_name"])
+        self.btc_markets = [item for item in market_list if 'BTC-' in item['market']]
+        self.btc_markets = sorted(self.btc_markets, key=lambda item: item["korean_name"])
 
 app = QtWidgets.QApplication([])
 main_window = MainWindow()

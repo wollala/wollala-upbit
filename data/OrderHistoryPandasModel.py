@@ -54,7 +54,7 @@ class OrderHistoryPandasModel(QAbstractTableModel):
         elif role == Qt.DisplayRole:
             target_data = self.df.iloc[index.row(), index.column()]
 
-            if index.column() == 0:  # 날짜
+            if index.column() == 0:  # 주문시간
                 return target_data.strftime("%Y/%m/%d %H:%M:%S")
             elif index.column() == 3:  # 거래수량
                 return "{0:,.8f}".format(target_data)

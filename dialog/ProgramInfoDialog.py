@@ -2,8 +2,8 @@ from PySide6 import QtWidgets, QtCore
 
 
 class ProgramInfoDialog(QtWidgets.QMessageBox):
-    def __init__(self, parent):
-        super(ProgramInfoDialog, self).__init__(parent)
+    def __init__(self, parent=None):
+        super(ProgramInfoDialog, self).__init__(parent=parent)
 
         self.setStyleSheet("* {margin-left: 0; margin-right: 15; }")
         self.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)  # noqa

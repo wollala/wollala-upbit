@@ -8,10 +8,6 @@ class UserSetting:
         self.upbit = {
             "access_key": "",
             "secret_key": "",
-            "transaction_history": {
-                "selected_krw_markets": [],
-                "selected_btc_markets": [],
-            }
         }
 
         self.read_config_file()

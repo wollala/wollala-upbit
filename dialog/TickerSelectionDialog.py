@@ -5,8 +5,8 @@ from PySide6 import QtCore, QtWidgets, QtGui
 
 
 class TickerSelectionDialog(QtWidgets.QDialog):
-    def __init__(self, krw_markets, btc_markets):
-        super(TickerSelectionDialog, self).__init__()
+    def __init__(self, krw_markets, btc_markets, parent=None):
+        super(TickerSelectionDialog, self).__init__(parent=parent)
         self.user_setting = UserSetting()
         self.upbit_settings = self.user_setting.upbit
 

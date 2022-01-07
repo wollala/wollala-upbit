@@ -1,10 +1,9 @@
 import re
 
 import pandas as pd
-from PySide6 import QtCore, QtWidgets, QtGui
-from upbit.client import Upbit
+from PySide6 import QtCore, QtWidgets
+from pytz import timezone
 
-from UserSetting import UserSetting
 from data.OrderHistoryPandasModel import OrderHistoryPandasModel
 from util.Thread import Worker
 from widget import CalenderWidget, OrderHistoryTableView
@@ -36,13 +35,36 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
             model = OrderHistoryPandasModel(df_for_model)
             self.order_history_tableview.setModel(model)
 
-    def __init__(self, krw_markets, btc_markets):
-        super().__init__()
+    @property
+    def loading_progress_order_history(self):
+        return self.__loading_progress_order_history
+
+    @loading_progress_order_history.setter
+    def loading_progress_order_history(self, value):
+        self.__loading_progress_order_history = value
+        self.loading_progress_order_history_changed.emit(value)  # noqa
+
+    @property
+    def order_history_df(self):
+        return self.__order_history_df
+
+    @order_history_df.setter
+    def order_history_df(self, value):
+        self.__order_history_df = value
+        self.order_history_df_changed.emit()  # noqa
+
+    order_history_df_changed = QtCore.Signal()
+    loading_progress_order_history_changed = QtCore.Signal(int)
+
+    def __init__(self, upbit_client, krw_markets, btc_markets, parent=None):
+        super().__init__(parent=parent)
+        self.upbit_client = upbit_client
         self.krw_markets = krw_markets
         self.btc_markets = btc_markets
-        self.order_history_df = None
+        self.__order_history_df = pd.DataFrame(columns=["주문시간", "마켓", "종류", "거래수량", "거래단가", "거래금액", "수수료", "정산금액"])
         self.__from_date = QtCore.QDate.currentDate()
         self.__to_date = QtCore.QDate.currentDate()
+        self.__loading_progress_order_history = 0.0
 
         # Thread
         self.thread_pool = QtCore.QThreadPool.globalInstance()
@@ -51,29 +73,29 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         self.spinner = WaitingSpinner(self)
 
         # 새로고침 버튼
-        self.refresh_btn = QtWidgets.QPushButton(u"\u21BB")
+        self.refresh_btn = QtWidgets.QPushButton(u"\u21BB", parent=self)
         self.refresh_btn.setStyleSheet("font-size: 20px;")
         self.refresh_btn.setFixedHeight(58)
         self.refresh_btn.clicked.connect(self.refresh_btn_clicked)
 
         # Ticker Filter
-        self.all_ticker_btn = QtWidgets.QPushButton("전체")
+        self.all_ticker_btn = QtWidgets.QPushButton("전체", parent=self)
         self.all_ticker_btn.setFixedHeight(25)
         self.all_ticker_btn.setCheckable(True)
-        self.krw_ticker_btn = QtWidgets.QPushButton("KRW")
+        self.krw_ticker_btn = QtWidgets.QPushButton("KRW", parent=self)
         self.krw_ticker_btn.setFixedHeight(25)
         self.krw_ticker_btn.setCheckable(True)
-        self.btc_ticker_btn = QtWidgets.QPushButton("BTC")
+        self.btc_ticker_btn = QtWidgets.QPushButton("BTC", parent=self)
         self.btc_ticker_btn.setFixedHeight(25)
         self.btc_ticker_btn.setCheckable(True)
 
-        self.ticker_btn_group = QtWidgets.QButtonGroup()
+        self.ticker_btn_group = QtWidgets.QButtonGroup(parent=self)
         self.ticker_btn_group.addButton(self.all_ticker_btn, 0)
         self.ticker_btn_group.addButton(self.krw_ticker_btn, 1)
         self.ticker_btn_group.addButton(self.btc_ticker_btn, 2)
         self.ticker_btn_group.buttonClicked.connect(self.ticker_btn_clicked)  # noqa
 
-        self.ticker_filter_combobox = QtWidgets.QComboBox()
+        self.ticker_filter_combobox = QtWidgets.QComboBox(parent=self)
         self.ticker_filter_combobox.view().setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         self.ticker_filter_combobox.currentIndexChanged.connect(
             self.ticker_filter_combobox_currentIndex_changed)  # noqa
@@ -83,22 +105,22 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         ticker_groupbox_layout.addWidget(self.krw_ticker_btn, 0, 1, 0, 1)
         ticker_groupbox_layout.addWidget(self.btc_ticker_btn, 0, 2, 0, 1)
         ticker_groupbox_layout.addWidget(self.ticker_filter_combobox, 0, 3, 0, 7)
-        ticker_groupbox = QtWidgets.QGroupBox("Tiker filter")
+        ticker_groupbox = QtWidgets.QGroupBox("Tiker filter", parent=self)
         ticker_groupbox.setStyleSheet("QGroupBox{font-size: 12px;}")
         ticker_groupbox.setLayout(ticker_groupbox_layout)
 
         # 매수/매도 필터
-        self.all_side_btn = QtWidgets.QPushButton("전체")
+        self.all_side_btn = QtWidgets.QPushButton("전체", parent=self)
         self.all_side_btn.setFixedHeight(25)
         self.all_side_btn.setCheckable(True)
-        self.buy_side_btn = QtWidgets.QPushButton("매수")
+        self.buy_side_btn = QtWidgets.QPushButton("매수", parent=self)
         self.buy_side_btn.setFixedHeight(25)
         self.buy_side_btn.setCheckable(True)
-        self.sell_side_btn = QtWidgets.QPushButton("매도")
+        self.sell_side_btn = QtWidgets.QPushButton("매도", parent=self)
         self.sell_side_btn.setFixedHeight(25)
         self.sell_side_btn.setCheckable(True)
 
-        self.side_btn_group = QtWidgets.QButtonGroup()
+        self.side_btn_group = QtWidgets.QButtonGroup(parent=self)
         self.side_btn_group.addButton(self.all_side_btn, 0)
         self.side_btn_group.addButton(self.buy_side_btn, 1)
         self.side_btn_group.addButton(self.sell_side_btn, 2)
@@ -108,40 +130,40 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         side_groupbox_layout.addWidget(self.all_side_btn, 0, 0, 0, 1)
         side_groupbox_layout.addWidget(self.buy_side_btn, 0, 1, 0, 1)
         side_groupbox_layout.addWidget(self.sell_side_btn, 0, 2, 0, 1)
-        side_groupbox = QtWidgets.QGroupBox("Side filter")
+        side_groupbox = QtWidgets.QGroupBox("Side filter", parent=self)
         side_groupbox.setStyleSheet("QGroupBox{font-size: 12px;}")
         side_groupbox.setLayout(side_groupbox_layout)
 
         top_btn_layout = QtWidgets.QGridLayout()
         top_btn_layout.addWidget(ticker_groupbox, 0, 0, 0, 10)
         top_btn_layout.addWidget(side_groupbox, 0, 10, 0, 6)
-        top_btn_layout.addWidget(QtWidgets.QWidget(), 0, 16, 0, 3)
-        top_btn_layout.addWidget(self.refresh_btn, 0, 19, 0, 1, alignment=QtCore.Qt.AlignBottom)
+        top_btn_layout.addWidget(QtWidgets.QWidget(parent=self), 0, 16, 0, 3)
+        top_btn_layout.addWidget(self.refresh_btn, 0, 19, 0, 1, alignment=QtCore.Qt.AlignBottom)  # noqa
 
         # 지정된 기간 선택 버튼
-        self.today_btn = QtWidgets.QPushButton("오늘")
+        self.today_btn = QtWidgets.QPushButton("오늘", parent=self)
         self.all_ticker_btn.setFixedHeight(25)
         self.today_btn.setCheckable(True)
-        self.week1_btn = QtWidgets.QPushButton("1주일")
+        self.week1_btn = QtWidgets.QPushButton("1주일", parent=self)
         self.all_ticker_btn.setFixedHeight(25)
         self.week1_btn.setCheckable(True)
-        self.week2_btn = QtWidgets.QPushButton("2주일")
+        self.week2_btn = QtWidgets.QPushButton("2주일", parent=self)
         self.all_ticker_btn.setFixedHeight(25)
         self.week2_btn.setCheckable(True)
-        self.month1_btn = QtWidgets.QPushButton("1개월")
+        self.month1_btn = QtWidgets.QPushButton("1개월", parent=self)
         self.all_ticker_btn.setFixedHeight(25)
         self.month1_btn.setCheckable(True)
-        self.month3_btn = QtWidgets.QPushButton("3개월")
+        self.month3_btn = QtWidgets.QPushButton("3개월", parent=self)
         self.all_ticker_btn.setFixedHeight(25)
         self.month3_btn.setCheckable(True)
-        self.month6_btn = QtWidgets.QPushButton("6개월")
+        self.month6_btn = QtWidgets.QPushButton("6개월", parent=self)
         self.all_ticker_btn.setFixedHeight(25)
         self.month6_btn.setCheckable(True)
-        self.year1_btn = QtWidgets.QPushButton("1년")
+        self.year1_btn = QtWidgets.QPushButton("1년", parent=self)
         self.all_ticker_btn.setFixedHeight(25)
         self.year1_btn.setCheckable(True)
 
-        self.period_btn_group = QtWidgets.QButtonGroup()
+        self.period_btn_group = QtWidgets.QButtonGroup(parent=self)
         self.period_btn_group.addButton(self.today_btn, 0)
         self.period_btn_group.addButton(self.week1_btn, 1)
         self.period_btn_group.addButton(self.week2_btn, 2)
@@ -162,23 +184,25 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
 
         # 날짜 직접 선택 버튼
         self.from_date_btn = QtWidgets.QPushButton(
-            f'{self.from_date.year()}.{self.from_date.month():02d}.{self.from_date.day():02d}')
+            f'{self.from_date.year()}.{self.from_date.month():02d}.{self.from_date.day():02d}',
+            parent=self)
         self.from_date_btn.setCheckable(True)
         self.to_date_btn = QtWidgets.QPushButton(
-            f'{self.to_date.year()}.{self.to_date.month():02d}.{self.to_date.day():02d}')
+            f'{self.to_date.year()}.{self.to_date.month():02d}.{self.to_date.day():02d}',
+            parent=self)
         self.to_date_btn.setCheckable(True)
         self.from_date_btn.clicked.connect(self.from_btn_clicked)
         self.to_date_btn.clicked.connect(self.to_btn_clicked)
 
         self.date_btn_layout = QtWidgets.QGridLayout()
         self.date_btn_layout.addWidget(self.from_date_btn, 0, 0, 1, 5)
-        self.date_btn_layout.addWidget(QtWidgets.QLabel(" ~ ", alignment=QtCore.Qt.AlignCenter), 0, 5, 1, 1)
+        self.date_btn_layout.addWidget(QtWidgets.QLabel(" ~ ", alignment=QtCore.Qt.AlignCenter,  parent=self), 0, 5, 1, 1)
         self.date_btn_layout.addWidget(self.to_date_btn, 0, 6, 1, 5)
 
         period_groupbox_layout = QtWidgets.QVBoxLayout()
         period_groupbox_layout.addLayout(self.period_btn_layout)
         period_groupbox_layout.addLayout(self.date_btn_layout)
-        period_groupbox = QtWidgets.QGroupBox("Date filter")
+        period_groupbox = QtWidgets.QGroupBox("Date filter", parent=self)
         period_groupbox.setStyleSheet("QGroupBox{font-size: 12px;}")
         period_groupbox.setLayout(period_groupbox_layout)
 
@@ -201,9 +225,8 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         # 테이블
         self.order_history_tableview = OrderHistoryTableView()
         self.order_history_tableview.verticalScrollBar().setFixedWidth(10)
-        header_model = QtGui.QStandardItemModel()
-        header_model.setHorizontalHeaderLabels(["주문시간", "마켓", "종류", "거래수량", "거래단가", "거래금액", "수수료", "정산금"])
-        self.order_history_tableview.setModel(header_model)
+        model = OrderHistoryPandasModel(self.order_history_df)
+        self.order_history_tableview.setModel(model)
         self.order_history_tableview.horizontalHeader().setStretchLastSection(True)
         self.order_history_tableview.setColumnWidth(0, 170)  # 주문시간
         self.order_history_tableview.setColumnWidth(1, 100)  # 마켓
@@ -219,7 +242,7 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         self.table_layout.addWidget(self.order_history_tableview)
 
         # 레이아웃
-        main_layout = QtWidgets.QVBoxLayout()
+        main_layout = QtWidgets.QVBoxLayout(parent=self)
         main_layout.addLayout(top_btn_layout)
         main_layout.addWidget(period_groupbox)
         main_layout.addLayout(self.table_layout)
@@ -273,20 +296,13 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
     @QtCore.Slot()
     def refresh_btn_clicked(self):
         def worker_fn():
-            tickers_order = self.get_all_orders_by_upbit()
-            df = self.convert_tickers_order_to_dataframe(tickers_order)
-            return df
-
-        def result_fn(df):
-            self.order_history_df = df
+            self.get_all_orders_by_upbit()
 
         def finish_fn():
             self.stop_spinner()
-            self.update_table_model(self.order_history_df)
 
         self.play_spinner()
         worker = Worker(worker_fn)
-        worker.signals.result.connect(result_fn)
         worker.signals.finished.connect(finish_fn)
         self.thread_pool.start(worker)
 
@@ -381,53 +397,37 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         self.from_calender_widget.setDateRange(QtCore.QDate(2019, 1, 1), self.to_date)
 
     def get_all_orders_by_upbit(self):
-        user_setting = UserSetting()
-        upbit = Upbit(user_setting.upbit["access_key"], user_setting.upbit["secret_key"])
-        tickers_order = {}
-        # tickers_order = {
-        #       "KRW-ETH" = [..orders],
-        #       "BTC-ETH" = [..orders],
-        #       "KRW-DOGE" = [..orders],
-        #     }
-        interest_krw_tickers = user_setting.upbit['transaction_history']['selected_krw_markets']
-        interest_krw_tickers = [re.findall('\((KRW-[^)]+|BTC-[^)]+)\)', ticker)[0] for ticker in
-                                interest_krw_tickers]  # noqa
-        interest_btc_tickers = user_setting.upbit['transaction_history']['selected_btc_markets']
-        interest_btc_tickers = [re.findall('\((KRW-[^)]+|BTC-[^)]+)\)', ticker)[0] for ticker in
-                                interest_btc_tickers]  # noqa
-        interest_tickers = interest_krw_tickers + interest_btc_tickers
-
         # 전체 주문 History 요청
-        for ticker in interest_tickers:
-            order_info_all = upbit.Order.Order_info_all(market=ticker, states=["done", "cancel"])['result']
-            if order_info_all:
-                tickers_order[ticker] = [order for order in order_info_all if order['trades_count'] > 0]
+        _order_info_all = []
+        page = 1
+        while True:
+            orders = self.upbit_client.Order.Order_info_all(page=page, limit=100, states=["done", "cancel"])['result']
+            _order_info_all = _order_info_all + orders
+            page += 1
+            if len(orders) < 100:
+                break
+        _order_info_all = [order for order in _order_info_all if order['trades_count'] > 0]
 
-        # 개별 주문에 대한 Detailed info 요청
-        for ticker, order_list in tickers_order.items():
-            for order in order_list:
-                detailed_order = upbit.Order.Order_info(uuid=order['uuid'])['result']
-                if 'trades' in detailed_order and detailed_order['trades']:
-                    df_trades = pd.DataFrame(detailed_order['trades'])
-                    df_trades = df_trades.astype({'funds': float,
-                                                  'price': float,
-                                                  'volume': float})
-                    fund = df_trades['funds'].sum()
-                    trading_price = df_trades['price'].sum() / detailed_order['trades_count']
-                    trading_volume = df_trades['volume'].sum()
-                    order['fund'] = fund
-                    order['trading_price'] = trading_price
-                    order['trading_volume'] = trading_volume
-                    if order['side'] == 'ask':  # 매도시 최종금액 = 정산금액 - 수수료
-                        order['executed_fund'] = order['fund'] - float(order['paid_fee'])
-                    else:  # 매수시 최종금액 = 정산금액 + 수수료
-                        order['executed_fund'] = order['fund'] + float(order['paid_fee'])
-        return tickers_order
-
-    def convert_tickers_order_to_dataframe(self, tickers_order):
-        df_list = []
-        for ticker, order_list in tickers_order.items():
-            df = pd.DataFrame(order_list)
+        # 개별 주문에 대한 Detailed info 요청 및 업데이트
+        for i, order in enumerate(_order_info_all):
+            detailed_order = self.upbit_client.Order.Order_info(uuid=order['uuid'])['result']
+            if 'trades' in detailed_order and detailed_order['trades']:
+                df_trades = pd.DataFrame(detailed_order['trades'])
+                df_trades = df_trades.astype({'funds': float,
+                                              'price': float,
+                                              'volume': float})
+                fund = df_trades['funds'].sum()
+                trading_price = df_trades['price'].sum() / detailed_order['trades_count']
+                trading_volume = df_trades['volume'].sum()
+                order['fund'] = fund
+                order['trading_price'] = trading_price
+                order['trading_volume'] = trading_volume
+                if order['side'] == 'ask':  # 매도시 최종금액 = 정산금액 - 수수료
+                    order['executed_fund'] = order['fund'] - float(order['paid_fee'])
+                else:  # 매수시 최종금액 = 정산금액 + 수수료
+                    order['executed_fund'] = order['fund'] + float(order['paid_fee'])
+            # single dict to df로 변환
+            df = pd.DataFrame([order])
             df.loc[(df.side == 'bid'), 'side'] = '매수'
             df.loc[(df.side == 'ask'), 'side'] = '매도'
 
@@ -437,19 +437,24 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
                                'paid_fee': '수수료', 'fund': '거래금액', 'trading_volume': '거래수량',
                                'executed_fund': '정산금액'}, inplace=True)
             df = df.reindex(columns=['주문시간', '마켓', '종류', '거래수량', '거래단가', '거래금액', '수수료', '정산금액'])
-            df = df.astype({'수수료': float, '주문시간': 'datetime64[ns]'})
-            df_list.append(df)
-        return pd.concat(df_list, ignore_index=True)
+            df['주문시간'] = pd.to_datetime(df['주문시간'])
+            df = df.astype({'수수료': float})
+
+            # update progress bar in main
+            self.loading_progress_order_history = (i + 1) / len(_order_info_all) * 100
+            # 저장
+            self.order_history_df = pd.concat([self.order_history_df, df], ignore_index=True)
+            self.order_history_df_changed.emit()  # noqa
 
     def play_spinner(self):
-        self.setEnabled(False)
+        self.refresh_btn.setEnabled(False)
         self.spinner.show()
         self.spinner.raise_()
         self.spinner.start()
 
     def stop_spinner(self):
-        self.setEnabled(True)
         self.spinner.stop()
+        self.refresh_btn.setEnabled(True)
 
     def unchecked_date_btn_group(self):
         if self.period_btn_group.checkedButton():
@@ -457,8 +462,7 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
             self.period_btn_group.checkedButton().setChecked(False)
             self.period_btn_group.setExclusive(True)
 
-    def update_table_model(self, df):
-        self.order_history_df = df
+    def update_table_model(self):
         df_for_model = self.filtering_df(self.order_history_df)
         model = OrderHistoryPandasModel(df_for_model)
         self.order_history_tableview.setModel(model)
@@ -467,9 +471,16 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         result_df = df.sort_values(by='주문시간', ascending=False)
 
         # 날짜 필터링
-        to_date = self.to_date.addDays(1)  # noqa
+        from_datetime = QtCore.QDateTime.fromString(f'{self.from_date.toString("yyyy-MM-dd")} 00:00:00',
+                                                    "yyyy-MM-dd hh:mm:ss")
+        to_datetime = QtCore.QDateTime.fromString(f'{self.to_date.toString("yyyy-MM-dd")} 23:59:59',
+                                                  "yyyy-MM-dd hh:mm:ss")
+        from_datetime = from_datetime.toPython().astimezone(timezone('Asia/Seoul'))
+        to_datetime = to_datetime.toPython().astimezone(timezone('Asia/Seoul'))
+
         result_df = result_df.query(
-            '@self.from_date.toString("yyyy-MM-dd") <= 주문시간 <= @to_date.toString("yyyy-MM-dd")')
+            '@from_datetime <= 주문시간 <= @to_datetime'
+        )
 
         # 매수 매도 필터링
         side_btn_id = self.side_btn_group.checkedId()

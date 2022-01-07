@@ -1,16 +1,20 @@
 from PySide6 import QtCore, QtWidgets
+from upbit.client import Upbit
 
 from UserSetting import UserSetting
 
 
 class APIKeyInputDialog(QtWidgets.QDialog):
-    def __init__(self):
-        super(APIKeyInputDialog, self).__init__()
+    upbit_client_updated = QtCore.Signal(Upbit)
+
+    def __init__(self, parent=None):
+        super(APIKeyInputDialog, self).__init__(parent=parent)
         self.setWindowTitle("API key 입력")
         self.user_setting = UserSetting()
         self.upbit_settings = self.user_setting.upbit
         self.api_access_key = self.upbit_settings["access_key"]
         self.api_secret_key = self.upbit_settings["secret_key"]
+        self.upbit_client = None
 
         _api_access_key_label = QtWidgets.QLabel("Access key")
         _api_secret_key_label = QtWidgets.QLabel("Secret key")
@@ -53,7 +57,18 @@ class APIKeyInputDialog(QtWidgets.QDialog):
         _user_setting.upbit['secret_key'] = self.api_secret_key
         _user_setting.write_config_file()
 
-        self.hide()
+        self.upbit_client = Upbit(self.api_access_key, self.api_secret_key)
+        response = self.upbit_client.APIKey.APIKey_info()['response']
+
+        if response['ok']:
+            self.upbit_client_updated.emit(self.upbit_client)
+            self.hide()
+        else:
+            error_response = eval(response["text"])
+            error_text = f"<p style='text-align: center;'>Upbit 서버가 정상응답하지 않습니다.</p>" \
+                         f"<p style='text-align: center;'>정상적인 upbit API key를 입력하셨는지 확인해주세요.\n</p>" \
+                         f"<p style='text-align: center;'>{error_response['error']['name']}: {error_response['error']['message']}</p>"
+            QtWidgets.QMessageBox.information(self, 'wollala-upbit 메시지', error_text)
 
     @QtCore.Slot()
     def on_cancel_clicked(self):

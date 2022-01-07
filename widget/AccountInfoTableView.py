@@ -5,13 +5,13 @@ from PySide6 import QtWidgets, QtCore, QtGui
 class AccountInfoTableView(QtWidgets.QTableView):
     sumFinished = QtCore.Signal(pd.DataFrame, float)
 
-    def __init__(self):
-        super(AccountInfoTableView, self).__init__()
-        self.sum_action = QtGui.QAction('합', self)
+    def __init__(self, parent=None):
+        super(AccountInfoTableView, self).__init__(parent=parent)
+        self.sum_action = QtGui.QAction('합', parent=self)
         self.sum_action.setStatusTip('선택된 Cell 값들을 더합니다.')
         self.sum_action.triggered.connect(self.sum)
 
-        self.menu = QtWidgets.QMenu(self)
+        self.menu = QtWidgets.QMenu(parent=self)
 
     def contextMenuEvent(self, event):
         self.menu.clear()

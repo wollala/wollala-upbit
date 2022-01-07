@@ -10,8 +10,9 @@ from widget.WaitingSpinner import WaitingSpinner
 
 
 class AccountInfoWidget(QtWidgets.QWidget):
-    def __init__(self, krw_markets, btc_markets):
-        super(AccountInfoWidget, self).__init__()
+    def __init__(self, upbit_client, krw_markets, btc_markets, parent=None):
+        super(AccountInfoWidget, self).__init__(parent=parent)
+        self.upbit_client = upbit_client
         self.krw_markets = krw_markets
         self.btc_markets = btc_markets
         self.account_info_df = None
@@ -23,14 +24,14 @@ class AccountInfoWidget(QtWidgets.QWidget):
         self.spinner = WaitingSpinner(self)
 
         # 새로고침 버튼
-        self.refresh_btn = QtWidgets.QPushButton(u"\u21BB")
+        self.refresh_btn = QtWidgets.QPushButton(u"\u21BB", parent=self)
         self.refresh_btn.setStyleSheet("font-size: 20px;")
         self.refresh_btn.setFixedHeight(58)
         self.refresh_btn.clicked.connect(self.refresh_btn_clicked)
 
         # TableView
-        self.summary_tableview = QtWidgets.QTableView()
-        summary_header_model = QtGui.QStandardItemModel()
+        self.summary_tableview = QtWidgets.QTableView(parent=self)
+        summary_header_model = QtGui.QStandardItemModel(parent=self)
         summary_header_model.setHorizontalHeaderLabels(['보유KRW', '총매수', '투자비율', '총 보유자산', '총평가', '평가손익', '수익률'])
         self.summary_tableview.verticalHeader().setHidden(True)
         self.summary_tableview.setModel(summary_header_model)
@@ -50,7 +51,7 @@ class AccountInfoWidget(QtWidgets.QWidget):
 
         # TableView
         self.account_info_tableview = AccountInfoTableView()
-        account_info_header_model = QtGui.QStandardItemModel()
+        account_info_header_model = QtGui.QStandardItemModel(parent=self)
         account_info_header_model.setHorizontalHeaderLabels(
             ['화폐종류', '보유수량', '매수평균가', '현재가', '매수금액', '평가금액', '평가손익', '수익률'])
         self.account_info_tableview.verticalHeader().setHidden(True)
@@ -76,60 +77,62 @@ class AccountInfoWidget(QtWidgets.QWidget):
 
     def refresh_btn_clicked(self):
         def worker_fn():
-            user_setting = UserSetting()
-            upbit = Upbit(user_setting.upbit['access_key'], user_setting.upbit['secret_key'])
-            account_info = upbit.Account.Account_info()
-            account_info_list = account_info['result']
+            account_info = None
+            try:
+                account_info = self.upbit_client.Account.Account_info()
+                account_info_list = account_info['result']
 
-            coin_base_krw_market = ['KRW-BTC']
-            coin_base_btc_market = []
+                coin_base_krw_market = ['KRW-BTC']
+                coin_base_btc_market = []
 
-            # 각 코인의 market을 찾는다.
-            # KRW에 있는면 KRW로 BTC에만 있으면 BTC로..
-            for i in account_info_list:
-                if i['currency'] in [i['currency'] for i in self.krw_markets]:
-                    market_string = f'KRW-{i["currency"]}'
-                    i['market'] = market_string
-                    coin_base_krw_market.append(market_string)
-                elif i['currency'] in [i['currency'] for i in self.btc_markets]:
-                    market_string = f'BTC-{i["currency"]}'
-                    i['market'] = market_string
-                    coin_base_btc_market.append(market_string)
-            krw_markets_string = ','.join(set(coin_base_krw_market))
-            btc_markets_string = ','.join(set(coin_base_btc_market))
-            krw_price_list = upbit.Trade.Trade_ticker(markets=krw_markets_string)['result']
-            btc_price_list = upbit.Trade.Trade_ticker(markets=btc_markets_string)['result']
-            krw_price_df = pd.DataFrame(krw_price_list, columns={'market', 'trade_price'})
-            btc_price_df = pd.DataFrame(btc_price_list, columns={'market', 'trade_price'})
-            btc_price = krw_price_df[krw_price_df['market'] == 'KRW-BTC']['trade_price']  # 코인의 btc가격 * btc의 krw가격
-            # KRW 마켓코인: trade_price = 코인의 krw가격
-            # BTC 마켓코인: trade_price = 코인의 btc가격 * btc의 krw가격
-            btc_price_df['trade_price'] = btc_price_df.loc[:, 'trade_price'] * btc_price
-            price_df = pd.concat([krw_price_df, btc_price_df], axis=0)
+                # 각 코인의 market을 찾는다.
+                # KRW에 있는면 KRW로 BTC에만 있으면 BTC로..
+                for i in account_info_list:
+                    if i['currency'] in [i['currency'] for i in self.krw_markets]:
+                        market_string = f'KRW-{i["currency"]}'
+                        i['market'] = market_string
+                        coin_base_krw_market.append(market_string)
+                    elif i['currency'] in [i['currency'] for i in self.btc_markets]:
+                        market_string = f'BTC-{i["currency"]}'
+                        i['market'] = market_string
+                        coin_base_btc_market.append(market_string)
+                krw_markets_string = ','.join(set(coin_base_krw_market))
+                btc_markets_string = ','.join(set(coin_base_btc_market))
+                krw_price_list = self.upbit_client.Trade.Trade_ticker(markets=krw_markets_string)['result']
+                btc_price_list = self.upbit_client.Trade.Trade_ticker(markets=btc_markets_string)['result']
+                krw_price_df = pd.DataFrame(krw_price_list, columns={'market', 'trade_price'})
+                btc_price_df = pd.DataFrame(btc_price_list, columns={'market', 'trade_price'})
+                btc_price = krw_price_df[krw_price_df['market'] == 'KRW-BTC']['trade_price']  # 코인의 btc가격 * btc의 krw가격
+                # KRW 마켓코인: trade_price = 코인의 krw가격
+                # BTC 마켓코인: trade_price = 코인의 btc가격 * btc의 krw가격
+                btc_price_df['trade_price'] = btc_price_df.loc[:, 'trade_price'] * btc_price
+                price_df = pd.concat([krw_price_df, btc_price_df], axis=0)
 
-            account_info_df = pd.DataFrame(account_info_list)
-            account_info_df = pd.merge(account_info_df, price_df, how='left', on='market')
-            account_info_df = account_info_df.astype({
-                'locked': float,
-                'balance': float,
-                'avg_buy_price': float,
-                'trade_price': float
-            })
-            account_info_df['balance'] = account_info_df['balance'] + account_info_df['locked']
+                account_info_df = pd.DataFrame(account_info_list)
+                account_info_df = pd.merge(account_info_df, price_df, how='left', on='market')
+                account_info_df = account_info_df.astype({
+                    'locked': float,
+                    'balance': float,
+                    'avg_buy_price': float,
+                    'trade_price': float
+                })
+                account_info_df['balance'] = account_info_df['balance'] + account_info_df['locked']
 
-            account_info_df.drop(['locked', 'avg_buy_price_modified', 'unit_currency', 'market'], axis=1, inplace=True)
-            account_info_df.rename(
-                columns={'balance': '보유수량', 'avg_buy_price': '매수평균가', 'currency': '화폐종류', 'trade_price': '현재가'},
-                inplace=True)
+                account_info_df.drop(['locked', 'avg_buy_price_modified', 'unit_currency', 'market'], axis=1, inplace=True)
+                account_info_df.rename(
+                    columns={'balance': '보유수량', 'avg_buy_price': '매수평균가', 'currency': '화폐종류', 'trade_price': '현재가'},
+                    inplace=True)
 
-            account_info_df['매수금액'] = account_info_df['보유수량'] * account_info_df['매수평균가']
-            account_info_df['평가금액'] = account_info_df['보유수량'] * account_info_df['현재가']
-            account_info_df['평가손익'] = account_info_df['평가금액'] - account_info_df['매수금액']
-            account_info_df['수익률'] = account_info_df['평가손익'] / account_info_df['매수금액'] * 100
+                account_info_df['매수금액'] = account_info_df['보유수량'] * account_info_df['매수평균가']
+                account_info_df['평가금액'] = account_info_df['보유수량'] * account_info_df['현재가']
+                account_info_df['평가손익'] = account_info_df['평가금액'] - account_info_df['매수금액']
+                account_info_df['수익률'] = account_info_df['평가손익'] / account_info_df['매수금액'] * 100
 
-            account_info_df = account_info_df.reindex(
-                columns=['화폐종류', '보유수량', '매수평균가', '현재가', '매수금액', '평가금액', '평가손익', '수익률'])
-            return account_info_df
+                account_info_df = account_info_df.reindex(
+                    columns=['화폐종류', '보유수량', '매수평균가', '현재가', '매수금액', '평가금액', '평가손익', '수익률'])
+                return account_info_df
+            except Exception as e:
+                return pd.DataFrame(columns=['화폐종류', '보유수량', '매수평균가', '현재가', '매수금액', '평가금액', '평가손익', '수익률'])
 
         def result_fn(df):
             self.account_info_df = df
