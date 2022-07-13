@@ -1,11 +1,12 @@
 import sys
 
 import pandas as pd
+import json
 from PySide6 import QtWidgets, QtGui, QtCore
 from upbit.client import Upbit
 
 from UserSetting import UserSetting
-from dialog import APIKeyInputDialog, ProgramInfoDialog, TickerSelectionDialog
+from dialog import APIKeyInputDialog, ProgramInfoDialog
 from widget import AccountInfoWidget, TransactionHistoryWidget
 
 
@@ -21,8 +22,10 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.information(self, 'wollala-upbit 메시지',
                                               'Upbit 서버의 응답이 없습니다.')
         elif not api_key_test_response['ok']:
+            error_text = json.loads(api_key_test_response["text"])['error']['message']
             QtWidgets.QMessageBox.information(self, 'wollala-upbit 메시지',
-                                              'upbit API key를 설정에서 등록 후 사용하세요.')
+                                              f'upbit 서버와 API key 인증과정에서 문제가 생겼습니다.\n'
+                                              f'{error_text}')
 
         self.get_market_all_info_by_upbit()
 

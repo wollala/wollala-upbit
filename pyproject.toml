@@ -2,10 +2,10 @@
 name = "wollala-upbit"
 version = "0.1.0"
 description = ""
-authors = ["Bumjoon Park <bumjoon.park@qt.io>"]
+authors = ["wollala <wollala.zip@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "=3.8"
+python = "=3.8.10"
 PySide6 = "^6.2.2"
 requests = "^2.26.0"
 pandas = "^1.3.5"

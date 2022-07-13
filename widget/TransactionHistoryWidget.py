@@ -432,7 +432,7 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
             df.loc[(df.side == 'ask'), 'side'] = '매도'
 
             df.drop(['uuid', 'ord_type', 'price', 'state', 'trades_count', 'volume', 'executed_volume',
-                     'remaining_volume', 'reserved_fee', 'remaining_fee', 'locked'], axis=1, inplace=True)
+                     'remaining_volume', 'reserved_fee', 'remaining_fee', 'locked'], axis=1, inplace=True, errors='ignore')
             df.rename(columns={'side': '종류', 'trading_price': '거래단가', 'market': '마켓', 'created_at': '주문시간',
                                'paid_fee': '수수료', 'fund': '거래금액', 'trading_volume': '거래수량',
                                'executed_fund': '정산금액'}, inplace=True)
