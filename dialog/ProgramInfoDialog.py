@@ -12,7 +12,7 @@ class ProgramInfoDialog(QtWidgets.QMessageBox):
             "<p style='text-align: center;'>&nbsp;</p>"
             "<p style='text-align: center;'><img src=':/resource/wollala-upbit_icon.png' alt='' width='64' height='64'></p>"
             "<p style='text-align: center; font-size: 28px;'><strong>wollala-upbit</strong></p>"
-            "<p style='text-align: center;'>Version 0.0.2</p>"
+            "<p style='text-align: center;'>Version 1.0.0</p>"
             "<p style='text-align: center;'>by wollala (<a href='mailto:wollala.zip@gmail.com'>wollala.zip@gmail.com</a>)</p>"  # noqa 
             "<p style='text-align: center;'>&nbsp;</p>"
             "<p style='text-align: center;'>이 프로그램은 어떠한 형태의 보증도 제공하지 않습니다.</p>"

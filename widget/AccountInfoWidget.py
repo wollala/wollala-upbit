@@ -102,10 +102,11 @@ class AccountInfoWidget(QtWidgets.QWidget):
                 btc_price_list = self.upbit_client.Trade.Trade_ticker(markets=btc_markets_string)['result']
                 krw_price_df = pd.DataFrame(krw_price_list, columns={'market', 'trade_price'})
                 btc_price_df = pd.DataFrame(btc_price_list, columns={'market', 'trade_price'})
-                btc_price = krw_price_df[krw_price_df['market'] == 'KRW-BTC']['trade_price']  # 코인의 btc가격 * btc의 krw가격
+                btc_price = krw_price_df.loc[krw_price_df['market'] == 'KRW-BTC']['trade_price'].reset_index(drop=True)
+
                 # KRW 마켓코인: trade_price = 코인의 krw가격
                 # BTC 마켓코인: trade_price = 코인의 btc가격 * btc의 krw가격
-                btc_price_df['trade_price'] = btc_price_df.loc[:, 'trade_price'] * btc_price
+                btc_price_df['trade_price'] = btc_price_df.loc[:, 'trade_price'] * btc_price[0]
                 price_df = pd.concat([krw_price_df, btc_price_df], axis=0)
 
                 account_info_df = pd.DataFrame(account_info_list)
@@ -148,6 +149,7 @@ class AccountInfoWidget(QtWidgets.QWidget):
             self.summary_df['수익률'] = self.summary_df["평가손익"] / self.summary_df["총매수"] * 100
             self.summary_df = self.summary_df.reindex(
                 columns=['보유KRW', '총매수', '투자비율', '총 보유자산', '총평가', '평가손익', '수익률'])
+            self.summary_df = self.summary_df.reset_index(drop=True)
             self.summary_tableview.setModel(SummaryPandasModel(self.summary_df))
             self.account_info_tableview.setModel(AccountInfoPandasModel(self.account_info_df))
             self.stop_spinner()

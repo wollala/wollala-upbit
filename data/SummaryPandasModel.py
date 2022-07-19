@@ -41,7 +41,7 @@ class SummaryPandasModel(QAbstractTableModel):
         elif role == Qt.BackgroundRole:
             red = QColor(238, 64, 53, 200)
             blue = QColor(3, 146, 207, 200)
-            gray = QColor(116, 109, 105, 200)
+            gray = QColor(116, 109, 105, 70)
             if index.row() in self.plus_profit_row:
                 return QBrush(red)
             elif index.row() in self.minus_profit_row:
