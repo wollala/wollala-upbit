@@ -1,3 +1,5 @@
+import io
+import csv
 import pandas as pd
 from PySide6 import QtWidgets, QtCore, QtGui
 
@@ -27,6 +29,37 @@ class OrderHistoryTableView(QtWidgets.QTableView):
         self.ask_minus_bid_action.triggered.connect(self.ask_minus_bid)
 
         self.menu = QtWidgets.QMenu(parent=self)
+
+    # Ctrl+C 처리
+    def keyPressEvent(self, event):
+        if event.matches(QtGui.QKeySequence.Copy):
+            self.copySelection()
+
+    # csv 형태로 클립보드에 복사
+    def copySelection(self):
+        selection = self.selectedIndexes()
+        if selection:
+            rows = sorted(index.row() for index in selection)
+            columns = sorted(index.column() for index in selection)
+            rowcount = rows[-1] - rows[0] + 1
+            colcount = columns[-1] - columns[0] + 1
+            table = [[''] * colcount for _ in range(rowcount)]
+            for index in selection:
+                row = index.row() - rows[0]
+                column = index.column() - columns[0]
+                table[row][column] = index.data()
+
+            # 숫자 뒤의 KRW, BTC 문자 삭제
+            for i, _v in enumerate(table):
+                for j, _p in enumerate(table[i]):
+                    table[i][j] = table[i][j].replace(',', '')
+                    table[i][j] = table[i][j].replace(' KRW', '')
+                    table[i][j] = table[i][j].replace(' BTC', '')
+            stream = io.StringIO()
+            csv.writer(stream).writerows(table)
+            copy_str = stream.getvalue().replace(' KRW', '')
+            copy_str = copy_str.replace(' BTC', '')
+            QtWidgets.QApplication.clipboard().setText(copy_str)
 
     def contextMenuEvent(self, event):
         self.menu.clear()

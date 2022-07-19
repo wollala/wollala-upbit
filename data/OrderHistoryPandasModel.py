@@ -8,7 +8,7 @@ class OrderHistoryPandasModel(QAbstractTableModel):
 
     def __init__(self, dataframe: pd.DataFrame, parent=None):
         QAbstractTableModel.__init__(self, parent)
-        self.df = dataframe
+        self.df = dataframe.round(9)
         self.sellRow = self.df.index[(self.df['종류'] == '매도')].tolist()
         self.buyRow = self.df.index[(self.df['종류'] == '매수')].tolist()
 
@@ -57,7 +57,10 @@ class OrderHistoryPandasModel(QAbstractTableModel):
             if index.column() == 0:  # 주문시간
                 return target_data.strftime("%Y/%m/%d %H:%M:%S")
             elif index.column() == 3:  # 거래수량
-                return "{0:,.8f}".format(target_data)
+                if self.df.iloc[index.row(), 3] % 1 == 0:
+                    return "{0:,.0f}".format(target_data)
+                else:
+                    return "{0:,.8f}".format(target_data)
             elif index.column() == 4:  # 거래단가
                 if self.df.iloc[index.row(), 1].startswith("KRW"):
                     return "{0:,.0f} KRW".format(target_data)

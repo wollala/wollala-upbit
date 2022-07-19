@@ -8,7 +8,11 @@ class AccountInfoPandasModel(QAbstractTableModel):
 
     def __init__(self, dataframe: pd.DataFrame, parent=None):
         QAbstractTableModel.__init__(self, parent)
-        self.df = dataframe
+        self.df = dataframe.round(9)
+        krw_index = self.df[self.df["화폐종류"].str.contains("KRW")].index
+        self.df.drop(krw_index, inplace=True)
+        self.df = self.df.sort_values(by="평가금액", ascending=False)
+        self.df = self.df.reset_index(drop=True)
         self.plus_profit_row = self.df.index[(self.df['수익률'] >= 0)].tolist()
         self.minus_profit_row = self.df.index[(self.df['수익률'] < 0)].tolist()
 
@@ -41,7 +45,7 @@ class AccountInfoPandasModel(QAbstractTableModel):
         elif role == Qt.BackgroundRole:
             red = QColor(238, 64, 53, 200)
             blue = QColor(3, 146, 207, 200)
-            gray = QColor(116, 109, 105, 200)
+            gray = QColor(116, 109, 105, 70)
             if index.row() in self.plus_profit_row:
                 return QBrush(red)
             elif index.row() in self.minus_profit_row:
@@ -57,7 +61,11 @@ class AccountInfoPandasModel(QAbstractTableModel):
         elif role == Qt.DisplayRole:
             target_data = self.df.iloc[index.row(), index.column()]
             if index.column() == 1:  # 보유수량
-                return "{0:,.8f}".format(target_data)
+                # KRW 이거나 소수점이 없으면 소수점 자리수 출력 안함
+                if self.df.iloc[index.row(), 0].startswith("KRW") or self.df.iloc[index.row(), 1] % 1 == 0:
+                    return "{0:,.0f}".format(target_data)
+                else:
+                    return "{0:,.8f}".format(target_data)
             elif index.column() == 2:  # 매수평균가
                 return "{0:,.0f} KRW".format(target_data)
             elif index.column() == 3:  # 현재가
