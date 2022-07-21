@@ -1,6 +1,7 @@
 import json
 import os.path
 
+
 class UserSetting:
     CONFIG_FILE = 'config.json'
 

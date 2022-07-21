@@ -1,12 +1,12 @@
 import pandas as pd
 from PySide6 import QtCore, QtWidgets, QtGui
-from upbit.client import Upbit
 
-from UserSetting import UserSetting
-from data import AccountInfoPandasModel, SummaryPandasModel
-from util.Thread import Worker
-from widget import AccountInfoTableView
-from widget.WaitingSpinner import WaitingSpinner
+from data.account_info_pandas_model import AccountInfoPandasModel
+from data.summary_pandas_model import SummaryPandasModel
+from util.thread import Worker
+from widget.account_info_table_view import AccountInfoTableView
+from widget.summary_table_view import SummaryTableView
+from widget.waiting_spinner import WaitingSpinner
 
 
 class AccountInfoWidget(QtWidgets.QWidget):
@@ -30,7 +30,7 @@ class AccountInfoWidget(QtWidgets.QWidget):
         self.refresh_btn.clicked.connect(self.refresh_btn_clicked)
 
         # TableView
-        self.summary_tableview = QtWidgets.QTableView(parent=self)
+        self.summary_tableview = SummaryTableView()
         summary_header_model = QtGui.QStandardItemModel(parent=self)
         summary_header_model.setHorizontalHeaderLabels(['보유KRW', '총매수', '투자비율', '총 보유자산', '총평가', '평가손익', '수익률'])
         self.summary_tableview.verticalHeader().setHidden(True)

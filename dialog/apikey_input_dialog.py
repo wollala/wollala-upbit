@@ -1,7 +1,7 @@
 from PySide6 import QtCore, QtWidgets
 from upbit.client import Upbit
 
-from UserSetting import UserSetting
+from user_setting import UserSetting
 
 
 class APIKeyInputDialog(QtWidgets.QDialog):

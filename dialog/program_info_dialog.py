@@ -1,5 +1,5 @@
-from PySide6 import QtWidgets, QtCore, QtGui
-import rc_resource
+from PySide6 import QtWidgets, QtCore
+
 
 class ProgramInfoDialog(QtWidgets.QMessageBox):
     def __init__(self, parent=None):

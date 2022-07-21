@@ -4,10 +4,11 @@ import pandas as pd
 from PySide6 import QtCore, QtWidgets
 from pytz import timezone
 
-from data.OrderHistoryPandasModel import OrderHistoryPandasModel
-from util.Thread import Worker
-from widget import CalenderWidget, OrderHistoryTableView
-from widget.WaitingSpinner import WaitingSpinner
+from data.order_history_pandas_model import OrderHistoryPandasModel
+from util.thread import Worker
+from widget.calender_widget import CalenderWidget
+from widget.order_history_table_view import OrderHistoryTableView
+from widget.waiting_spinner import WaitingSpinner
 
 
 class TransactionHistoryWidget(QtWidgets.QWidget):

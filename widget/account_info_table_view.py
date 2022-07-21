@@ -1,5 +1,6 @@
-import io
 import csv
+import io
+
 import pandas as pd
 from PySide6 import QtWidgets, QtCore, QtGui
 
@@ -10,13 +11,18 @@ class AccountInfoTableView(QtWidgets.QTableView):
     def __init__(self, parent=None):
         super(AccountInfoTableView, self).__init__(parent=parent)
         self.sum_action = QtGui.QAction('합', parent=self)
-        self.sum_action.setStatusTip('선택된 Cell 값들을 더합니다.')
+        self.sum_action.setStatusTip('선택 된 Cell 값들을 더합니다.')
         self.sum_action.triggered.connect(self.sum)
+
+        self.copy_action = QtGui.QAction("복사", parent=self)
+        self.copy_action.setStatusTip('선택 된 Cell의 내용을 클립보드에 복사합니다.')
+        self.copy_action.triggered.connect(self.copySelection)
 
         self.menu = QtWidgets.QMenu(parent=self)
 
     def contextMenuEvent(self, event):
         self.menu.clear()
+        self.menu.addAction(self.copy_action)
 
         selected_haeder_set = set(
             map(lambda i: i.model().headerData(i.column(), QtCore.Qt.Horizontal, QtCore.Qt.DisplayRole),
@@ -40,6 +46,7 @@ class AccountInfoTableView(QtWidgets.QTableView):
             self.copySelection()
 
     # csv 형태로 클립보드에 복사
+    @QtCore.Slot()
     def copySelection(self):
         selection = self.selectedIndexes()
         if selection:
@@ -59,14 +66,15 @@ class AccountInfoTableView(QtWidgets.QTableView):
                     table[i][j] = table[i][j].replace(',', '')
                     table[i][j] = table[i][j].replace(' KRW', '')
                     table[i][j] = table[i][j].replace(' BTC', '')
+                    table[i][j] = table[i][j].replace(' %', '')
             stream = io.StringIO()
-            csv.writer(stream).writerows(table)
+            csv.writer(stream, delimiter='\t').writerows(table)
             copy_str = stream.getvalue().replace(' KRW', '')
             copy_str = copy_str.replace(' BTC', '')
             QtWidgets.QApplication.clipboard().setText(copy_str)
 
-    @QtCore.Slot(bool)
-    def sum(self, checked):
+    @QtCore.Slot()
+    def sum(self):
         df = self.model().df
         selected_col = [i.column() for i in self.selectedIndexes()][0]
         selected_row_list = [i.row() for i in self.selectedIndexes()]

@@ -1,7 +1,9 @@
 import re
 from copy import deepcopy
-from UserSetting import UserSetting
+
 from PySide6 import QtCore, QtWidgets, QtGui
+
+from user_setting import UserSetting
 
 
 class TickerSelectionDialog(QtWidgets.QDialog):

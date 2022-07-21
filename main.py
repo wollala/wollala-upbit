@@ -1,13 +1,15 @@
+import json
 import sys
 
 import pandas as pd
-import json
 from PySide6 import QtWidgets, QtGui, QtCore
 from upbit.client import Upbit
 
-from UserSetting import UserSetting
-from dialog import APIKeyInputDialog, ProgramInfoDialog
-from widget import AccountInfoWidget, TransactionHistoryWidget
+from dialog.apikey_input_dialog import APIKeyInputDialog
+from dialog.program_info_dialog import ProgramInfoDialog
+from user_setting import UserSetting
+from widget.account_info_widget import AccountInfoWidget
+from widget.transaction_history_widget import TransactionHistoryWidget
 
 
 class MainWindow(QtWidgets.QMainWindow):
