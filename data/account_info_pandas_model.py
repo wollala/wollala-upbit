@@ -1,6 +1,6 @@
 import pandas as pd
 from PySide6.QtCore import QAbstractTableModel, Qt, QModelIndex
-from PySide6.QtGui import QBrush, QColor
+from PySide6.QtGui import QBrush, QColor, QFont
 
 
 class AccountInfoPandasModel(QAbstractTableModel):
@@ -9,9 +9,8 @@ class AccountInfoPandasModel(QAbstractTableModel):
     def __init__(self, dataframe: pd.DataFrame, parent=None):
         QAbstractTableModel.__init__(self, parent)
         self.df = dataframe.round(9)
-        krw_index = self.df[self.df["화폐종류"].str.contains("KRW")].index
-        self.df.drop(krw_index, inplace=True)
         self.df = self.df.reset_index(drop=True)
+        self.krw_row = self.df[self.df["화폐종류"].str.contains("KRW")].index
         self.plus_profit_row = self.df.index[(self.df['수익률'] >= 0)].tolist()
         self.minus_profit_row = self.df.index[(self.df['수익률'] < 0)].tolist()
 
@@ -45,12 +44,20 @@ class AccountInfoPandasModel(QAbstractTableModel):
             red = QColor(238, 64, 53, 200)
             blue = QColor(3, 146, 207, 200)
             gray = QColor(116, 109, 105, 70)
-            if index.row() in self.plus_profit_row:
+            green = QColor("#5F7161")
+            if index.row() in self.krw_row:
+                return QBrush(green)
+            elif index.row() in self.plus_profit_row:
                 return QBrush(red)
             elif index.row() in self.minus_profit_row:
                 return QBrush(blue)
             else:
                 return QBrush(gray)
+        elif role == Qt.FontRole:
+            if index.row() in self.krw_row:
+                font = QFont()
+                font.setBold(True)
+                return font
         elif role == Qt.TextAlignmentRole:
             target_data = self.df.iloc[index.row(), index.column()]
             if isinstance(target_data, float):

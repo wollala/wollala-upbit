@@ -63,7 +63,6 @@ class AccountInfoWidget(QtWidgets.QWidget):
         self.account_info_tableview.setColumnWidth(7, 80)  # 수익률
 
         # PieChart
-        self.series = QtCharts.QPieSeries()
         def on_hovered(slice, state):
             if state:
                 slice.setExploded()
@@ -71,16 +70,18 @@ class AccountInfoWidget(QtWidgets.QWidget):
             else:
                 slice.setExploded(False)
                 slice.setLabelVisible(False)
-        self.series.hovered.connect(on_hovered)
+
         self.chart = QtCharts.QChart()
+        self.chart.setTheme(QtCharts.QChart.ChartThemeBlueCerulean)
+        self.series = QtCharts.QPieSeries()
+        self.series.hovered.connect(on_hovered)
         self.chart.addSeries(self.series)
         self.chart.setTitle('보유자산 포트폴리오')
         self.chart.setAnimationOptions(QtCharts.QChart.AllAnimations)
         self.chart.legend().setAlignment(QtCore.Qt.AlignRight)
 
-        self._chart_view = QtCharts.QChartView(self.chart)
-        self._chart_view.setRenderHint(QtGui.QPainter.Antialiasing)
-        self._chart_view.setRubberBand(QtCharts.QChartView.NoRubberBand)
+        self.chart_view = QtCharts.QChartView(self.chart)
+        self.chart_view.setRenderHint(QtGui.QPainter.Antialiasing)
 
         # Layout
         left_frame = QtWidgets.QFrame(parent=self)
@@ -94,7 +95,7 @@ class AccountInfoWidget(QtWidgets.QWidget):
         right_frame = QtWidgets.QFrame(parent=self)
         right_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         top_right_layout = QtWidgets.QGridLayout()
-        top_right_layout.addWidget(self._chart_view)
+        top_right_layout.addWidget(self.chart_view)
         right_frame.setLayout(top_right_layout)
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal, parent=self)
@@ -192,7 +193,7 @@ class AccountInfoWidget(QtWidgets.QWidget):
         def finish_fn():
             self.summary_df = pd.DataFrame()
             self.summary_df["보유KRW"] = self.account_info_df[self.account_info_df["화폐종류"] == "KRW"]["보유수량"]
-            self.summary_df["총 보유자산"] = self.summary_df["보유KRW"] + self.account_info_df["평가금액"].sum()
+            self.summary_df["총 보유자산"] = self.account_info_df["평가금액"].sum()
             self.summary_df["총매수"] = self.account_info_df["매수금액"].sum()
             self.summary_df["투자비율"] = self.summary_df["총매수"] / (self.summary_df["보유KRW"] + self.summary_df["총매수"]) * 100
             self.summary_df["총평가"] = self.account_info_df["평가금액"].sum() - self.summary_df["보유KRW"]
