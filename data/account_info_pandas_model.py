@@ -11,7 +11,6 @@ class AccountInfoPandasModel(QAbstractTableModel):
         self.df = dataframe.round(9)
         krw_index = self.df[self.df["화폐종류"].str.contains("KRW")].index
         self.df.drop(krw_index, inplace=True)
-        self.df = self.df.sort_values(by="평가금액", ascending=False)
         self.df = self.df.reset_index(drop=True)
         self.plus_profit_row = self.df.index[(self.df['수익률'] >= 0)].tolist()
         self.minus_profit_row = self.df.index[(self.df['수익률'] < 0)].tolist()

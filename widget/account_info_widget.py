@@ -1,5 +1,5 @@
 import pandas as pd
-from PySide6 import QtCore, QtWidgets, QtGui
+from PySide6 import QtCore, QtWidgets, QtGui, QtCharts
 
 from data.account_info_pandas_model import AccountInfoPandasModel
 from data.summary_pandas_model import SummaryPandasModel
@@ -45,10 +45,6 @@ class AccountInfoWidget(QtWidgets.QWidget):
         self.summary_tableview.setColumnWidth(6, 80)  # 수익률
         self.summary_tableview.setFixedHeight(58)
 
-        top_layout = QtWidgets.QGridLayout()
-        top_layout.addWidget(self.summary_tableview, 0, 0, 0, 18, alignment=QtCore.Qt.AlignTop)
-        top_layout.addWidget(self.refresh_btn, 0, 19, 0, 1, alignment=QtCore.Qt.AlignBottom)
-
         # TableView
         self.account_info_tableview = AccountInfoTableView()
         account_info_header_model = QtGui.QStandardItemModel(parent=self)
@@ -66,10 +62,49 @@ class AccountInfoWidget(QtWidgets.QWidget):
         self.account_info_tableview.setColumnWidth(6, 170)  # 평가손익
         self.account_info_tableview.setColumnWidth(7, 80)  # 수익률
 
+        # PieChart
+        self.series = QtCharts.QPieSeries()
+        def on_hovered(slice, state):
+            if state:
+                slice.setExploded()
+                slice.setLabelVisible()
+            else:
+                slice.setExploded(False)
+                slice.setLabelVisible(False)
+        self.series.hovered.connect(on_hovered)
+        self.chart = QtCharts.QChart()
+        self.chart.addSeries(self.series)
+        self.chart.setTitle('보유자산 포트폴리오')
+        self.chart.setAnimationOptions(QtCharts.QChart.AllAnimations)
+        self.chart.legend().setAlignment(QtCore.Qt.AlignRight)
+
+        self._chart_view = QtCharts.QChartView(self.chart)
+        self._chart_view.setRenderHint(QtGui.QPainter.Antialiasing)
+        self._chart_view.setRubberBand(QtCharts.QChartView.NoRubberBand)
+
         # Layout
+        left_frame = QtWidgets.QFrame(parent=self)
+        left_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        top_left_layout = QtWidgets.QGridLayout()
+        top_left_layout.addWidget(self.summary_tableview, 0, 0, 1, 14)
+        top_left_layout.addWidget(self.refresh_btn, 0, 14, 1, 1)
+        top_left_layout.addWidget(self.account_info_tableview, 1, 0, 1, 15)
+        left_frame.setLayout(top_left_layout)
+
+        right_frame = QtWidgets.QFrame(parent=self)
+        right_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        top_right_layout = QtWidgets.QGridLayout()
+        top_right_layout.addWidget(self._chart_view)
+        right_frame.setLayout(top_right_layout)
+
+        splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal, parent=self)
+        splitter.addWidget(left_frame)
+        splitter.addWidget(right_frame)
+        splitter.setHandleWidth(5)
+        splitter.setSizes([500, 200])
+
         main_layout = QtWidgets.QVBoxLayout()
-        main_layout.addLayout(top_layout)
-        main_layout.addWidget(self.account_info_tableview)
+        main_layout.addWidget(splitter)
         self.setLayout(main_layout)
 
         # Get data
@@ -136,7 +171,23 @@ class AccountInfoWidget(QtWidgets.QWidget):
                 return pd.DataFrame(columns=['화폐종류', '보유수량', '매수평균가', '현재가', '매수금액', '평가금액', '평가손익', '수익률'])
 
         def result_fn(df):
+            # for table
+            import numpy as np
+            df['평가금액'] = np.where(df['화폐종류'] == 'KRW', df['보유수량'], df['평가금액'])
+            df = df.sort_values(by="평가금액", ascending=False)
             self.account_info_df = df
+
+            # for pie chart
+            self.series.clear()
+            for index, row in df.iterrows():
+                if row['화폐종류'] == 'KRW':
+                    self.series.append(row['화폐종류'], row['보유수량'])
+                elif row['평가금액'] and not pd.isna(row['평가금액']):
+                    self.series.append(row['화폐종류'], row['평가금액'])
+
+            for s in self.series.slices():
+                s.setBorderColor("black")
+                s.setLabel(f'{s.label()} {100 * s.percentage():.2f} %')
 
         def finish_fn():
             self.summary_df = pd.DataFrame()
@@ -144,7 +195,7 @@ class AccountInfoWidget(QtWidgets.QWidget):
             self.summary_df["총 보유자산"] = self.summary_df["보유KRW"] + self.account_info_df["평가금액"].sum()
             self.summary_df["총매수"] = self.account_info_df["매수금액"].sum()
             self.summary_df["투자비율"] = self.summary_df["총매수"] / (self.summary_df["보유KRW"] + self.summary_df["총매수"]) * 100
-            self.summary_df["총평가"] = self.account_info_df["평가금액"].sum()
+            self.summary_df["총평가"] = self.account_info_df["평가금액"].sum() - self.summary_df["보유KRW"]
             self.summary_df["평가손익"] = self.summary_df["총평가"] - self.summary_df["총매수"]
             self.summary_df['수익률'] = self.summary_df["평가손익"] / self.summary_df["총매수"] * 100
             self.summary_df = self.summary_df.reindex(
@@ -152,6 +203,7 @@ class AccountInfoWidget(QtWidgets.QWidget):
             self.summary_df = self.summary_df.reset_index(drop=True)
             self.summary_tableview.setModel(SummaryPandasModel(self.summary_df))
             self.account_info_tableview.setModel(AccountInfoPandasModel(self.account_info_df))
+
             self.stop_spinner()
 
         self.play_spinner()

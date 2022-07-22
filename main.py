@@ -80,7 +80,7 @@ class MainWindow(QtWidgets.QMainWindow):
         splitter.addWidget(mid_frame)
         splitter.addWidget(bottom_frame)
         splitter.setHandleWidth(5)
-        splitter.setSizes([300, 500, 200])
+        splitter.setSizes([300, 600, 100])
 
         # tab widget
         main_widget = QtWidgets.QFrame(parent=self)
@@ -272,8 +272,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btc_markets = [item for item in market_list if 'BTC-' in item['market']]
         self.btc_markets = sorted(self.btc_markets, key=lambda item: item["korean_name"])
 
+
 app = QtWidgets.QApplication([])
 main_window = MainWindow()
-main_window.show()
+main_window.showMaximized()
 
 sys.exit(app.exec())
