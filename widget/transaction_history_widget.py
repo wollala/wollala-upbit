@@ -62,10 +62,18 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         self.upbit_client = upbit_client
         self.krw_markets = krw_markets
         self.btc_markets = btc_markets
+
         self.__order_history_df = pd.DataFrame(columns=["주문시간", "마켓", "종류", "거래수량", "거래단가", "거래금액", "수수료", "정산금액"])
         self.__from_date = QtCore.QDate.currentDate()
         self.__to_date = QtCore.QDate.currentDate()
         self.__loading_progress_order_history = 0.0
+
+        self.__filteringed = False
+        self.__prev_double_clicked_text = None
+        self.__prev_from_date = self.__from_date
+        self.__prev_to_date = self.__to_date
+        self.__prev_ticker_text = ""
+        self.__prev_side_text = "전체"
 
         # Thread
         self.thread_pool = QtCore.QThreadPool.globalInstance()
@@ -263,9 +271,68 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         header_text = qmodel_index.model().headerData(col, QtCore.Qt.Horizontal, QtCore.Qt.DisplayRole)
         cell_text = qmodel_index.data()
         if header_text == "주문시간":
+            cell_text = cell_text.split(' ')[0]
+
+        # 클릭했던 것을 다시 클릭하면 이전 상태로 복구함.
+        if self.__prev_double_clicked_text == cell_text and self.__filteringed:
+            self.__filteringed = False
+            if header_text == "주문시간":
+                self.from_date = self.__prev_from_date
+                self.to_date = self.__prev_to_date
+                self.from_date_btn.setText(
+                    f'{self.__prev_from_date.year()}.{self.__prev_from_date.month():02d}.{self.__prev_from_date.day():02d}')
+                self.to_date_btn.setText(
+                    f'{self.__prev_to_date.year()}.{self.__prev_to_date.month():02d}.{self.__prev_to_date.day():02d}')
+            elif header_text == "마켓":
+                if self.__prev_ticker_text.startswith('KRW-') or self.__prev_ticker_text.startswith('KRW 전체'):
+                    self.krw_ticker_btn.setChecked(True)
+                    self.ticker_btn_clicked(self.krw_ticker_btn)
+                    index = self.ticker_filter_combobox.findText(self.__prev_ticker_text,
+                                                                 QtCore.Qt.MatchContains)  # noqa
+                    if index >= 0:
+                        self.ticker_filter_combobox.setCurrentIndex(index)
+                elif self.__prev_ticker_text.startswith('BTC-') or self.__prev_ticker_text.startswith('BTC 전체'):
+                    self.btc_ticker_btn.setChecked(True)
+                    self.ticker_btn_clicked(self.btc_ticker_btn)
+                    index = self.ticker_filter_combobox.findText(self.__prev_ticker_text,
+                                                                 QtCore.Qt.MatchContains)  # noqa
+                    if index >= 0:
+                        self.ticker_filter_combobox.setCurrentIndex(index)
+                elif self.__prev_ticker_text == 'KRW/BTC 전체':
+                    self.all_ticker_btn.setChecked(True)
+                    self.ticker_btn_clicked(self.all_ticker_btn)
+            elif header_text == "종류":
+                if self.__prev_side_text == "매수":
+                    self.buy_side_btn.setChecked(True)
+                    self.side_btn_clicked(self.buy_side_btn)
+                elif self.__prev_side_text == "매도":
+                    self.sell_side_btn.setChecked(True)
+                    self.side_btn_clicked(self.sell_side_btn)
+                elif self.__prev_side_text == "전체":
+                    self.all_side_btn.setChecked(True)
+                    self.side_btn_clicked(self.all_side_btn)
+            return
+        else:  # 이전 상태 복구를 위한 데이터 저장
+            self.__filteringed = True
+            if header_text == "주문시간":
+                self.__prev_double_clicked_text = cell_text.split(' ')[0]
+            else:
+                self.__prev_double_clicked_text = cell_text
+            self.__prev_from_date = self.__from_date
+            self.__prev_to_date = self.__to_date
+            self.__prev_ticker_text = self.ticker_filter_combobox.currentText()
+            if self.buy_side_btn.isChecked():
+                self.__prev_side_text = "매수"
+            elif self.sell_side_btn.isChecked():
+                self.__prev_side_text = "매도"
+            else:
+                self.__prev_side_text = "전체"
+
+        # 필터링
+        if header_text == "주문시간":
             self.unchecked_date_btn_group()
-            self.from_date = QtCore.QDate.fromString(cell_text.split(' ')[0], "yyyy/MM/dd")
-            self.to_date = QtCore.QDate.fromString(cell_text.split(' ')[0], "yyyy/MM/dd")
+            self.from_date = QtCore.QDate.fromString(cell_text, "yyyy/MM/dd")
+            self.to_date = QtCore.QDate.fromString(cell_text, "yyyy/MM/dd")
             self.from_date_btn.setText(
                 f'{self.from_date.year()}.{self.from_date.month():02d}.{self.from_date.day():02d}')
             self.to_date_btn.setText(f'{self.to_date.year()}.{self.to_date.month():02d}.{self.to_date.day():02d}')
