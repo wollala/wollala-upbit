@@ -5,6 +5,7 @@ from PySide6 import QtCore, QtWidgets
 from pytz import timezone
 
 from data.order_history_pandas_model import OrderHistoryPandasModel
+from widget.date_filter_widget import DateFilterWidget
 from util.thread import Worker
 from widget.calender_widget import CalenderWidget
 from widget.order_history_table_view import OrderHistoryTableView
@@ -14,11 +15,11 @@ from widget.waiting_spinner import WaitingSpinner
 class TransactionHistoryWidget(QtWidgets.QWidget):
     @property
     def from_date(self):
-        return self.__from_date
+        return self._from_date
 
     @from_date.setter
     def from_date(self, value):
-        self.__from_date = value
+        self._from_date = value
         if self.order_history_df is not None:
             df_for_model = self.filtering_df(self.order_history_df)
             model = OrderHistoryPandasModel(df_for_model)
@@ -26,11 +27,11 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
 
     @property
     def to_date(self):
-        return self.__to_date
+        return self._to_date
 
     @to_date.setter
     def to_date(self, value):
-        self.__to_date = value
+        self._to_date = value
         if self.order_history_df is not None:
             df_for_model = self.filtering_df(self.order_history_df)
             model = OrderHistoryPandasModel(df_for_model)
@@ -38,20 +39,20 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
 
     @property
     def loading_progress_order_history(self):
-        return self.__loading_progress_order_history
+        return self._loading_progress_order_history
 
     @loading_progress_order_history.setter
     def loading_progress_order_history(self, value):
-        self.__loading_progress_order_history = value
+        self._loading_progress_order_history = value
         self.loading_progress_order_history_changed.emit(value)  # noqa
 
     @property
     def order_history_df(self):
-        return self.__order_history_df
+        return self._order_history_df
 
     @order_history_df.setter
     def order_history_df(self, value):
-        self.__order_history_df = value
+        self._order_history_df = value
         self.order_history_df_changed.emit()  # noqa
 
     order_history_df_changed = QtCore.Signal()
@@ -63,17 +64,17 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         self.krw_markets = krw_markets
         self.btc_markets = btc_markets
 
-        self.__order_history_df = pd.DataFrame(columns=["주문시간", "마켓", "종류", "거래수량", "거래단가", "거래금액", "수수료", "정산금액"])
-        self.__from_date = QtCore.QDate.currentDate()
-        self.__to_date = QtCore.QDate.currentDate()
-        self.__loading_progress_order_history = 0.0
+        self._order_history_df = pd.DataFrame(columns=["주문시간", "마켓", "종류", "거래수량", "거래단가", "거래금액", "수수료", "정산금액"])
+        self._from_date = QtCore.QDate.currentDate()
+        self._to_date = QtCore.QDate.currentDate()
+        self._loading_progress_order_history = 0.0
 
-        self.__filteringed = False
-        self.__prev_double_clicked_text = None
-        self.__prev_from_date = self.__from_date
-        self.__prev_to_date = self.__to_date
-        self.__prev_ticker_text = ""
-        self.__prev_side_text = "전체"
+        self._filteringed = False
+        self._prev_double_clicked_text = None
+        self._prev_from_date = self._from_date
+        self._prev_to_date = self._to_date
+        self._prev_ticker_text = ""
+        self._prev_side_text = "전체"
 
         # Thread
         self.thread_pool = QtCore.QThreadPool.globalInstance()
@@ -149,87 +150,15 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         top_btn_layout.addWidget(QtWidgets.QWidget(parent=self), 0, 16, 0, 3)
         top_btn_layout.addWidget(self.refresh_btn, 0, 19, 0, 1, alignment=QtCore.Qt.AlignBottom)  # noqa
 
-        # 지정된 기간 선택 버튼
-        self.today_btn = QtWidgets.QPushButton("오늘", parent=self)
-        self.all_ticker_btn.setFixedHeight(25)
-        self.today_btn.setCheckable(True)
-        self.week1_btn = QtWidgets.QPushButton("1주일", parent=self)
-        self.all_ticker_btn.setFixedHeight(25)
-        self.week1_btn.setCheckable(True)
-        self.week2_btn = QtWidgets.QPushButton("2주일", parent=self)
-        self.all_ticker_btn.setFixedHeight(25)
-        self.week2_btn.setCheckable(True)
-        self.month1_btn = QtWidgets.QPushButton("1개월", parent=self)
-        self.all_ticker_btn.setFixedHeight(25)
-        self.month1_btn.setCheckable(True)
-        self.month3_btn = QtWidgets.QPushButton("3개월", parent=self)
-        self.all_ticker_btn.setFixedHeight(25)
-        self.month3_btn.setCheckable(True)
-        self.month6_btn = QtWidgets.QPushButton("6개월", parent=self)
-        self.all_ticker_btn.setFixedHeight(25)
-        self.month6_btn.setCheckable(True)
-        self.year1_btn = QtWidgets.QPushButton("1년", parent=self)
-        self.all_ticker_btn.setFixedHeight(25)
-        self.year1_btn.setCheckable(True)
+        self.date_filter_widget = DateFilterWidget()
 
-        self.period_btn_group = QtWidgets.QButtonGroup(parent=self)
-        self.period_btn_group.addButton(self.today_btn, 0)
-        self.period_btn_group.addButton(self.week1_btn, 1)
-        self.period_btn_group.addButton(self.week2_btn, 2)
-        self.period_btn_group.addButton(self.month1_btn, 3)
-        self.period_btn_group.addButton(self.month3_btn, 4)
-        self.period_btn_group.addButton(self.month6_btn, 5)
-        self.period_btn_group.addButton(self.year1_btn, 6)
-        self.period_btn_group.buttonClicked.connect(self.period_btn_clicked)  # noqa
+        def set_from_date(from_date):
+            self.from_date = from_date
+        self.date_filter_widget.from_date_changed.connect(set_from_date)
 
-        self.period_btn_layout = QtWidgets.QHBoxLayout()
-        self.period_btn_layout.addWidget(self.today_btn)
-        self.period_btn_layout.addWidget(self.week1_btn)
-        self.period_btn_layout.addWidget(self.week2_btn)
-        self.period_btn_layout.addWidget(self.month1_btn)
-        self.period_btn_layout.addWidget(self.month3_btn)
-        self.period_btn_layout.addWidget(self.month6_btn)
-        self.period_btn_layout.addWidget(self.year1_btn)
-
-        # 날짜 직접 선택 버튼
-        self.from_date_btn = QtWidgets.QPushButton(
-            f'{self.from_date.year()}.{self.from_date.month():02d}.{self.from_date.day():02d}',
-            parent=self)
-        self.from_date_btn.setCheckable(True)
-        self.to_date_btn = QtWidgets.QPushButton(
-            f'{self.to_date.year()}.{self.to_date.month():02d}.{self.to_date.day():02d}',
-            parent=self)
-        self.to_date_btn.setCheckable(True)
-        self.from_date_btn.clicked.connect(self.from_btn_clicked)
-        self.to_date_btn.clicked.connect(self.to_btn_clicked)
-
-        self.date_btn_layout = QtWidgets.QGridLayout()
-        self.date_btn_layout.addWidget(self.from_date_btn, 0, 0, 1, 5)
-        self.date_btn_layout.addWidget(QtWidgets.QLabel(" ~ ", alignment=QtCore.Qt.AlignCenter,  parent=self), 0, 5, 1, 1)
-        self.date_btn_layout.addWidget(self.to_date_btn, 0, 6, 1, 5)
-
-        period_groupbox_layout = QtWidgets.QVBoxLayout()
-        period_groupbox_layout.addLayout(self.period_btn_layout)
-        period_groupbox_layout.addLayout(self.date_btn_layout)
-        period_groupbox = QtWidgets.QGroupBox("Date filter", parent=self)
-        period_groupbox.setStyleSheet("QGroupBox{font-size: 12px;}")
-        period_groupbox.setLayout(period_groupbox_layout)
-
-        # 달력위젯
-        self.from_calender_widget = CalenderWidget()
-        self.from_calender_widget.setMinimumWidth(400)
-        self.from_calender_widget.setMinimumHeight(300)
-        self.from_calender_widget.setWindowTitle("시작날짜")
-        self.from_calender_widget.setDateRange(QtCore.QDate(2019, 1, 1), QtCore.QDate.currentDate())
-        self.from_calender_widget.clicked.connect(self.from_date_clicked)  # noqa
-        self.from_calender_widget.closed.connect(lambda: self.from_date_btn.setChecked(False))
-
-        self.to_calender_widget = CalenderWidget()
-        self.to_calender_widget.setMinimumWidth(400)
-        self.to_calender_widget.setMinimumHeight(300)
-        self.to_calender_widget.setWindowTitle("종료날짜")
-        self.to_calender_widget.clicked.connect(self.to_date_clicked)  # noqa
-        self.to_calender_widget.closed.connect(lambda: self.to_date_btn.setChecked(False))
+        def set_to_date(to_date):
+            self.to_date = to_date
+        self.date_filter_widget.to_date_changed.connect(set_to_date)
 
         # 테이블
         self.order_history_tableview = OrderHistoryTableView()
@@ -253,7 +182,7 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         # 레이아웃
         main_layout = QtWidgets.QVBoxLayout(parent=self)
         main_layout.addLayout(top_btn_layout)
-        main_layout.addWidget(period_groupbox)
+        main_layout.addWidget(self.date_filter_widget)
         main_layout.addLayout(self.table_layout)
         self.setLayout(main_layout)
 
@@ -261,8 +190,8 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         self.ticker_btn_clicked(self.all_ticker_btn)
         self.all_side_btn.setChecked(True)
         self.ticker_btn_clicked(self.all_side_btn)
-        self.today_btn.setChecked(True)
-        self.period_btn_clicked(self.today_btn)
+        self.date_filter_widget.today_btn.setChecked(True)
+        self.date_filter_widget.period_btn_clicked(self.date_filter_widget.today_btn)
         self.refresh_btn_clicked()
 
     @QtCore.Slot()
@@ -274,68 +203,68 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
             cell_text = cell_text.split(' ')[0]
 
         # 클릭했던 것을 다시 클릭하면 이전 상태로 복구함.
-        if self.__prev_double_clicked_text == cell_text and self.__filteringed:
-            self.__filteringed = False
+        if self._prev_double_clicked_text == cell_text and self._filteringed:
+            self._filteringed = False
             if header_text == "주문시간":
-                self.from_date = self.__prev_from_date
-                self.to_date = self.__prev_to_date
-                self.from_date_btn.setText(
-                    f'{self.__prev_from_date.year()}.{self.__prev_from_date.month():02d}.{self.__prev_from_date.day():02d}')
-                self.to_date_btn.setText(
-                    f'{self.__prev_to_date.year()}.{self.__prev_to_date.month():02d}.{self.__prev_to_date.day():02d}')
+                self.from_date = self._prev_from_date
+                self.to_date = self._prev_to_date
+                self.date_filter_widget.from_date_btn.setText(
+                    f'{self._prev_from_date.year()}.{self._prev_from_date.month():02d}.{self._prev_from_date.day():02d}')
+                self.date_filter_widget.to_date_btn.setText(
+                    f'{self._prev_to_date.year()}.{self._prev_to_date.month():02d}.{self._prev_to_date.day():02d}')
             elif header_text == "마켓":
-                if self.__prev_ticker_text.startswith('KRW-') or self.__prev_ticker_text.startswith('KRW 전체'):
+                if self._prev_ticker_text.startswith('KRW-') or self._prev_ticker_text.startswith('KRW 전체'):
                     self.krw_ticker_btn.setChecked(True)
                     self.ticker_btn_clicked(self.krw_ticker_btn)
-                    index = self.ticker_filter_combobox.findText(self.__prev_ticker_text,
+                    index = self.ticker_filter_combobox.findText(self._prev_ticker_text,
                                                                  QtCore.Qt.MatchContains)  # noqa
                     if index >= 0:
                         self.ticker_filter_combobox.setCurrentIndex(index)
-                elif self.__prev_ticker_text.startswith('BTC-') or self.__prev_ticker_text.startswith('BTC 전체'):
+                elif self._prev_ticker_text.startswith('BTC-') or self._prev_ticker_text.startswith('BTC 전체'):
                     self.btc_ticker_btn.setChecked(True)
                     self.ticker_btn_clicked(self.btc_ticker_btn)
-                    index = self.ticker_filter_combobox.findText(self.__prev_ticker_text,
+                    index = self.ticker_filter_combobox.findText(self._prev_ticker_text,
                                                                  QtCore.Qt.MatchContains)  # noqa
                     if index >= 0:
                         self.ticker_filter_combobox.setCurrentIndex(index)
-                elif self.__prev_ticker_text == 'KRW/BTC 전체':
+                elif self._prev_ticker_text == 'KRW/BTC 전체':
                     self.all_ticker_btn.setChecked(True)
                     self.ticker_btn_clicked(self.all_ticker_btn)
             elif header_text == "종류":
-                if self.__prev_side_text == "매수":
+                if self._prev_side_text == "매수":
                     self.buy_side_btn.setChecked(True)
                     self.side_btn_clicked(self.buy_side_btn)
-                elif self.__prev_side_text == "매도":
+                elif self._prev_side_text == "매도":
                     self.sell_side_btn.setChecked(True)
                     self.side_btn_clicked(self.sell_side_btn)
-                elif self.__prev_side_text == "전체":
+                elif self._prev_side_text == "전체":
                     self.all_side_btn.setChecked(True)
                     self.side_btn_clicked(self.all_side_btn)
             return
         else:  # 이전 상태 복구를 위한 데이터 저장
-            self.__filteringed = True
+            self._filteringed = True
             if header_text == "주문시간":
-                self.__prev_double_clicked_text = cell_text.split(' ')[0]
+                self._prev_double_clicked_text = cell_text.split(' ')[0]
             else:
-                self.__prev_double_clicked_text = cell_text
-            self.__prev_from_date = self.__from_date
-            self.__prev_to_date = self.__to_date
-            self.__prev_ticker_text = self.ticker_filter_combobox.currentText()
+                self._prev_double_clicked_text = cell_text
+            self._prev_from_date = self._from_date
+            self._prev_to_date = self._to_date
+            self._prev_ticker_text = self.ticker_filter_combobox.currentText()
             if self.buy_side_btn.isChecked():
-                self.__prev_side_text = "매수"
+                self._prev_side_text = "매수"
             elif self.sell_side_btn.isChecked():
-                self.__prev_side_text = "매도"
+                self._prev_side_text = "매도"
             else:
-                self.__prev_side_text = "전체"
+                self._prev_side_text = "전체"
 
         # 필터링
         if header_text == "주문시간":
-            self.unchecked_date_btn_group()
+            self.date_filter_widget.unchecked_date_btn_group()
             self.from_date = QtCore.QDate.fromString(cell_text, "yyyy/MM/dd")
             self.to_date = QtCore.QDate.fromString(cell_text, "yyyy/MM/dd")
-            self.from_date_btn.setText(
+            self.date_filter_widget.from_date_btn.setText(
                 f'{self.from_date.year()}.{self.from_date.month():02d}.{self.from_date.day():02d}')
-            self.to_date_btn.setText(f'{self.to_date.year()}.{self.to_date.month():02d}.{self.to_date.day():02d}')
+            self.date_filter_widget.to_date_btn.setText(f'{self.to_date.year()}.{self.to_date.month():02d}.{self.to_date.day():02d}')
         elif header_text == "마켓":
             if cell_text.startswith('KRW-'):
                 self.krw_ticker_btn.setChecked(True)
@@ -406,64 +335,6 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
             model = OrderHistoryPandasModel(df_for_model)
             self.order_history_tableview.setModel(model)
 
-    @QtCore.Slot(int)
-    def period_btn_clicked(self, btn):
-        id = self.period_btn_group.id(btn)
-        self.to_date = QtCore.QDate.currentDate()
-        self.to_date_btn.setChecked(False)
-        self.from_date_btn.setChecked(False)
-        if id == 0:
-            self.from_date = QtCore.QDate.currentDate()
-        elif id == 1:
-            self.from_date = QtCore.QDate.currentDate().addDays(-7)
-        elif id == 2:
-            self.from_date = QtCore.QDate.currentDate().addDays(-14)
-        elif id == 3:
-            self.from_date = QtCore.QDate.currentDate().addMonths(-1)
-        elif id == 4:
-            self.from_date = QtCore.QDate.currentDate().addMonths(-3)
-        elif id == 5:
-            self.from_date = QtCore.QDate.currentDate().addMonths(-6)
-        elif id == 6:
-            self.from_date = QtCore.QDate.currentDate().addYears(-1)
-
-        self.from_date_btn.setText(f'{self.from_date.year()}.{self.from_date.month():02d}.{self.from_date.day():02d}')
-        self.to_date_btn.setText(f'{self.to_date.year()}.{self.to_date.month():02d}.{self.to_date.day():02d}')
-
-    @QtCore.Slot()
-    def from_btn_clicked(self):
-        self.unchecked_date_btn_group()
-        self.to_date_btn.setChecked(False)
-
-        self.to_calender_widget.hide()
-        self.from_calender_widget.show()
-        self.from_calender_widget.setSelectedDate(self.from_date)
-
-    @QtCore.Slot()
-    def to_btn_clicked(self):
-        self.unchecked_date_btn_group()
-        self.from_date_btn.setChecked(False)
-
-        self.from_calender_widget.hide()
-        self.to_calender_widget.show()
-        self.to_calender_widget.setSelectedDate(self.to_date)
-
-    @QtCore.Slot(QtCore.QDate)
-    def from_date_clicked(self, date):
-        self.from_date = date
-        self.from_date_btn.setText(f'{self.from_date.year()}.{self.from_date.month():02d}.{self.from_date.day():02d}')
-        self.from_calender_widget.hide()
-        self.from_date_btn.setChecked(False)
-        self.to_calender_widget.setDateRange(self.from_date, QtCore.QDate.currentDate())
-
-    @QtCore.Slot(QtCore.QDate)
-    def to_date_clicked(self, date):
-        self.to_date = date
-        self.to_date_btn.setText(f'{self.to_date.year()}.{self.to_date.month():02d}.{self.to_date.day():02d}')
-        self.to_calender_widget.hide()
-        self.to_date_btn.setChecked(False)
-        self.from_calender_widget.setDateRange(QtCore.QDate(2019, 1, 1), self.to_date)
-
     def get_all_orders_by_upbit(self):
         # 전체 주문 History 요청
         _order_info_all = []
@@ -524,12 +395,6 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         self.spinner.stop()
         self.refresh_btn.setEnabled(True)
 
-    def unchecked_date_btn_group(self):
-        if self.period_btn_group.checkedButton():
-            self.period_btn_group.setExclusive(False)
-            self.period_btn_group.checkedButton().setChecked(False)
-            self.period_btn_group.setExclusive(True)
-
     def update_table_model(self):
         df_for_model = self.filtering_df(self.order_history_df)
         model = OrderHistoryPandasModel(df_for_model)
@@ -539,9 +404,9 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         result_df = df.sort_values(by='주문시간', ascending=False)
 
         # 날짜 필터링
-        from_datetime = QtCore.QDateTime.fromString(f'{self.from_date.toString("yyyy-MM-dd")} 00:00:00',
+        from_datetime = QtCore.QDateTime.fromString(f'{self._from_date.toString("yyyy-MM-dd")} 00:00:00',
                                                     "yyyy-MM-dd hh:mm:ss")
-        to_datetime = QtCore.QDateTime.fromString(f'{self.to_date.toString("yyyy-MM-dd")} 23:59:59',
+        to_datetime = QtCore.QDateTime.fromString(f'{self._to_date.toString("yyyy-MM-dd")} 23:59:59',
                                                   "yyyy-MM-dd hh:mm:ss")
         from_datetime = from_datetime.toPython().astimezone(timezone('Asia/Seoul'))
         to_datetime = to_datetime.toPython().astimezone(timezone('Asia/Seoul'))

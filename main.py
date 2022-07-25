@@ -83,13 +83,13 @@ class MainWindow(QtWidgets.QMainWindow):
         splitter.setSizes([300, 600, 100])
 
         # tab widget
-        main_widget = QtWidgets.QFrame(parent=self)
-        main_widget_layout = QtWidgets.QHBoxLayout()
-        main_widget_layout.addWidget(splitter)
-        main_widget.setLayout(main_widget_layout)
+        investment_details_widget = QtWidgets.QFrame(parent=self)
+        investment_details_layout = QtWidgets.QHBoxLayout()
+        investment_details_layout.addWidget(splitter)
+        investment_details_widget.setLayout(investment_details_layout)
 
         tab_widget = QtWidgets.QTabWidget(parent=self)
-        tab_widget.addTab(main_widget, "투자내역")
+        tab_widget.addTab(investment_details_widget, "투자내역")
 
         # Progress Bar
         self.progressbar = QtWidgets.QProgressBar(parent=self)

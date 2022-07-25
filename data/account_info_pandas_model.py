@@ -53,11 +53,6 @@ class AccountInfoPandasModel(QAbstractTableModel):
                 return QBrush(blue)
             else:
                 return QBrush(gray)
-        elif role == Qt.FontRole:
-            if index.row() in self.krw_row:
-                font = QFont()
-                font.setBold(True)
-                return font
         elif role == Qt.TextAlignmentRole:
             target_data = self.df.iloc[index.row(), index.column()]
             if isinstance(target_data, float):

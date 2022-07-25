@@ -36,12 +36,12 @@ class AccountInfoWidget(QtWidgets.QWidget):
         self.summary_tableview.verticalHeader().setHidden(True)
         self.summary_tableview.setModel(summary_header_model)
         self.summary_tableview.horizontalHeader().setStretchLastSection(True)
-        self.summary_tableview.setColumnWidth(0, 180)  # 보유KRW
-        self.summary_tableview.setColumnWidth(1, 180)  # 총매수
-        self.summary_tableview.setColumnWidth(2, 80)  # 투자비율
-        self.summary_tableview.setColumnWidth(3, 180)  # 총 보유자산
-        self.summary_tableview.setColumnWidth(4, 180)  # 총평가
-        self.summary_tableview.setColumnWidth(5, 180)  # 평가손익
+        self.summary_tableview.setColumnWidth(0, 230)  # 보유KRW
+        self.summary_tableview.setColumnWidth(1, 170)  # 총매수
+        self.summary_tableview.setColumnWidth(2, 170)  # 투자비율
+        self.summary_tableview.setColumnWidth(3, 170)  # 총 보유자산
+        self.summary_tableview.setColumnWidth(4, 170)  # 총평가
+        self.summary_tableview.setColumnWidth(5, 170)  # 평가손익
         self.summary_tableview.setColumnWidth(6, 80)  # 수익률
         self.summary_tableview.setFixedHeight(58)
 
