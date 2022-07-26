@@ -5,64 +5,20 @@ from PySide6 import QtCore, QtWidgets
 from pytz import timezone
 
 from data.order_history_pandas_model import OrderHistoryPandasModel
+from util.data_manager import DataManager
+from util.upbit_caller import UpbitCaller
 from widget.date_filter_widget import DateFilterWidget
-from util.thread import Worker
-from widget.calender_widget import CalenderWidget
 from widget.order_history_table_view import OrderHistoryTableView
 from widget.waiting_spinner import WaitingSpinner
 
 
 class TransactionHistoryWidget(QtWidgets.QWidget):
-    @property
-    def from_date(self):
-        return self._from_date
-
-    @from_date.setter
-    def from_date(self, value):
-        self._from_date = value
-        if self.order_history_df is not None:
-            df_for_model = self.filtering_df(self.order_history_df)
-            model = OrderHistoryPandasModel(df_for_model)
-            self.order_history_tableview.setModel(model)
-
-    @property
-    def to_date(self):
-        return self._to_date
-
-    @to_date.setter
-    def to_date(self, value):
-        self._to_date = value
-        if self.order_history_df is not None:
-            df_for_model = self.filtering_df(self.order_history_df)
-            model = OrderHistoryPandasModel(df_for_model)
-            self.order_history_tableview.setModel(model)
-
-    @property
-    def loading_progress_order_history(self):
-        return self._loading_progress_order_history
-
-    @loading_progress_order_history.setter
-    def loading_progress_order_history(self, value):
-        self._loading_progress_order_history = value
-        self.loading_progress_order_history_changed.emit(value)  # noqa
-
-    @property
-    def order_history_df(self):
-        return self._order_history_df
-
-    @order_history_df.setter
-    def order_history_df(self, value):
-        self._order_history_df = value
-        self.order_history_df_changed.emit()  # noqa
-
-    order_history_df_changed = QtCore.Signal()
     loading_progress_order_history_changed = QtCore.Signal(int)
 
-    def __init__(self, upbit_client, krw_markets, btc_markets, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent=parent)
-        self.upbit_client = upbit_client
-        self.krw_markets = krw_markets
-        self.btc_markets = btc_markets
+        self.upbit = UpbitCaller()
+        self.dm = DataManager()
 
         self._order_history_df = pd.DataFrame(columns=["주문시간", "마켓", "종류", "거래수량", "거래단가", "거래금액", "수수료", "정산금액"])
         self._from_date = QtCore.QDate.currentDate()
@@ -75,9 +31,6 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         self._prev_to_date = self._to_date
         self._prev_ticker_text = ""
         self._prev_side_text = "전체"
-
-        # Thread
-        self.thread_pool = QtCore.QThreadPool.globalInstance()
 
         # Loading Spinner
         self.spinner = WaitingSpinner(self)
@@ -154,16 +107,18 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
 
         def set_from_date(from_date):
             self.from_date = from_date
+
         self.date_filter_widget.from_date_changed.connect(set_from_date)
 
         def set_to_date(to_date):
             self.to_date = to_date
+
         self.date_filter_widget.to_date_changed.connect(set_to_date)
 
         # 테이블
         self.order_history_tableview = OrderHistoryTableView()
         self.order_history_tableview.verticalScrollBar().setFixedWidth(10)
-        model = OrderHistoryPandasModel(self.order_history_df)
+        model = OrderHistoryPandasModel(self.dm.order_history_df)
         self.order_history_tableview.setModel(model)
         self.order_history_tableview.horizontalHeader().setStretchLastSection(True)
         self.order_history_tableview.setColumnWidth(0, 170)  # 주문시간
@@ -193,6 +148,33 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         self.date_filter_widget.today_btn.setChecked(True)
         self.date_filter_widget.period_btn_clicked(self.date_filter_widget.today_btn)
         self.refresh_btn_clicked()
+
+    @property
+    def from_date(self):
+        return self._from_date
+
+    @from_date.setter
+    def from_date(self, value):
+        self._from_date = value
+        self.update_model()
+
+    @property
+    def to_date(self):
+        return self._to_date
+
+    @to_date.setter
+    def to_date(self, value):
+        self._to_date = value
+        self.update_model()
+
+    @property
+    def loading_progress_order_history(self):
+        return self._loading_progress_order_history
+
+    @loading_progress_order_history.setter
+    def loading_progress_order_history(self, value):
+        self._loading_progress_order_history = value
+        self.loading_progress_order_history_changed.emit(value)  # noqa
 
     @QtCore.Slot()
     def table_double_clicked(self, qmodel_index):
@@ -264,7 +246,8 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
             self.to_date = QtCore.QDate.fromString(cell_text, "yyyy/MM/dd")
             self.date_filter_widget.from_date_btn.setText(
                 f'{self.from_date.year()}.{self.from_date.month():02d}.{self.from_date.day():02d}')
-            self.date_filter_widget.to_date_btn.setText(f'{self.to_date.year()}.{self.to_date.month():02d}.{self.to_date.day():02d}')
+            self.date_filter_widget.to_date_btn.setText(
+                f'{self.to_date.year()}.{self.to_date.month():02d}.{self.to_date.day():02d}')
         elif header_text == "마켓":
             if cell_text.startswith('KRW-'):
                 self.krw_ticker_btn.setChecked(True)
@@ -285,30 +268,17 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def ticker_filter_combobox_currentIndex_changed(self):  # noqa
-        if self.order_history_df is not None:
-            df_for_model = self.filtering_df(self.order_history_df)
-            model = OrderHistoryPandasModel(df_for_model)
-            self.order_history_tableview.setModel(model)
+        self.update_model()
 
     @QtCore.Slot()
     def refresh_btn_clicked(self):
-        def worker_fn():
-            self.get_all_orders_by_upbit()
-
-        def finish_fn():
-            self.stop_spinner()
-
+        self.dm.order_history_df = pd.DataFrame(
+            columns=["주문시간", "마켓", "종류", "거래수량", "거래단가", "거래금액", "수수료", "정산금액"])
         self.play_spinner()
-        worker = Worker(worker_fn)
-        worker.signals.finished.connect(finish_fn)
-        self.thread_pool.start(worker)
 
     @QtCore.Slot(int)
     def side_btn_clicked(self, btn):  # noqa
-        if self.order_history_df is not None:
-            df_for_model = self.filtering_df(self.order_history_df)
-            model = OrderHistoryPandasModel(df_for_model)
-            self.order_history_tableview.setModel(model)
+        self.update_model()
 
     @QtCore.Slot(int)
     def ticker_btn_clicked(self, btn):
@@ -320,70 +290,27 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         elif id == 1:
             self.ticker_filter_combobox.setEnabled(True)
             self.ticker_filter_combobox.clear()
-            items_list = [f"{i['korean_name']} ({i['market']})" for i in self.krw_markets]
+            items_list = [f"{i['korean_name']} ({i['market']})" for i in self.dm.krw_markets]
             self.ticker_filter_combobox.addItem("KRW 전체")
             self.ticker_filter_combobox.addItems(items_list)
         elif id == 2:
             self.ticker_filter_combobox.setEnabled(True)
             self.ticker_filter_combobox.clear()
-            items_list = [f"{i['korean_name']} ({i['market']})" for i in self.btc_markets]
+            items_list = [f"{i['korean_name']} ({i['market']})" for i in self.dm.btc_markets]
             self.ticker_filter_combobox.addItem("BTC 전체")
             self.ticker_filter_combobox.addItems(items_list)
 
-        if self.order_history_df is not None:
-            df_for_model = self.filtering_df(self.order_history_df)
+        self.update_model()
+
+    def updated_order_history_df(self, progress_value, df):
+        self.loading_progress_order_history = progress_value
+        self.dm.order_history_df = pd.concat([self.dm.order_history_df, df], ignore_index=True)
+
+    def update_model(self):
+        if self.dm.order_history_df is not None:
+            df_for_model = self.filtering_df(self.dm.order_history_df)
             model = OrderHistoryPandasModel(df_for_model)
             self.order_history_tableview.setModel(model)
-
-    def get_all_orders_by_upbit(self):
-        # 전체 주문 History 요청
-        _order_info_all = []
-        page = 1
-        while True:
-            orders = self.upbit_client.Order.Order_info_all(page=page, limit=100, states=["done", "cancel"])['result']
-            _order_info_all = _order_info_all + orders
-            page += 1
-            if len(orders) < 100:
-                break
-        _order_info_all = [order for order in _order_info_all if order['trades_count'] > 0]
-
-        # 개별 주문에 대한 Detailed info 요청 및 업데이트
-        for i, order in enumerate(_order_info_all):
-            detailed_order = self.upbit_client.Order.Order_info(uuid=order['uuid'])['result']
-            if 'trades' in detailed_order and detailed_order['trades']:
-                df_trades = pd.DataFrame(detailed_order['trades'])
-                df_trades = df_trades.astype({'funds': float,
-                                              'price': float,
-                                              'volume': float})
-                fund = df_trades['funds'].sum()
-                trading_price = df_trades['price'].sum() / detailed_order['trades_count']
-                trading_volume = df_trades['volume'].sum()
-                order['fund'] = fund
-                order['trading_price'] = trading_price
-                order['trading_volume'] = trading_volume
-                if order['side'] == 'ask':  # 매도시 최종금액 = 정산금액 - 수수료
-                    order['executed_fund'] = order['fund'] - float(order['paid_fee'])
-                else:  # 매수시 최종금액 = 정산금액 + 수수료
-                    order['executed_fund'] = order['fund'] + float(order['paid_fee'])
-            # single dict to df로 변환
-            df = pd.DataFrame([order])
-            df.loc[(df.side == 'bid'), 'side'] = '매수'
-            df.loc[(df.side == 'ask'), 'side'] = '매도'
-
-            df.drop(['uuid', 'ord_type', 'price', 'state', 'trades_count', 'volume', 'executed_volume',
-                     'remaining_volume', 'reserved_fee', 'remaining_fee', 'locked'], axis=1, inplace=True, errors='ignore')
-            df.rename(columns={'side': '종류', 'trading_price': '거래단가', 'market': '마켓', 'created_at': '주문시간',
-                               'paid_fee': '수수료', 'fund': '거래금액', 'trading_volume': '거래수량',
-                               'executed_fund': '정산금액'}, inplace=True)
-            df = df.reindex(columns=['주문시간', '마켓', '종류', '거래수량', '거래단가', '거래금액', '수수료', '정산금액'])
-            df['주문시간'] = pd.to_datetime(df['주문시간'])
-            df = df.astype({'수수료': float})
-
-            # update progress bar in main
-            self.loading_progress_order_history = (i + 1) / len(_order_info_all) * 100
-            # 저장
-            self.order_history_df = pd.concat([self.order_history_df, df], ignore_index=True)
-            self.order_history_df_changed.emit()  # noqa
 
     def play_spinner(self):
         self.refresh_btn.setEnabled(False)
@@ -395,11 +322,6 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         self.spinner.stop()
         self.refresh_btn.setEnabled(True)
 
-    def update_table_model(self):
-        df_for_model = self.filtering_df(self.order_history_df)
-        model = OrderHistoryPandasModel(df_for_model)
-        self.order_history_tableview.setModel(model)
-
     def filtering_df(self, df):
         result_df = df.sort_values(by='주문시간', ascending=False)
 
@@ -408,8 +330,8 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
                                                     "yyyy-MM-dd hh:mm:ss")
         to_datetime = QtCore.QDateTime.fromString(f'{self._to_date.toString("yyyy-MM-dd")} 23:59:59',
                                                   "yyyy-MM-dd hh:mm:ss")
-        from_datetime = from_datetime.toPython().astimezone(timezone('Asia/Seoul'))
-        to_datetime = to_datetime.toPython().astimezone(timezone('Asia/Seoul'))
+        from_datetime = from_datetime.toPython().astimezone(timezone('Asia/Seoul'))  # noqa
+        to_datetime = to_datetime.toPython().astimezone(timezone('Asia/Seoul'))  # noqa
 
         result_df = result_df.query(
             '@from_datetime <= 주문시간 <= @to_datetime'

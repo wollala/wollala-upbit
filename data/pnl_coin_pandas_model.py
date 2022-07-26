@@ -3,14 +3,13 @@ from PySide6.QtCore import QAbstractTableModel, Qt, QModelIndex
 from PySide6.QtGui import QBrush, QColor
 
 
-class AccountInfoPandasModel(QAbstractTableModel):
+class PnlCoinPandasModel(QAbstractTableModel):
     """A model to interface a Qt view with pandas dataframe """
 
     def __init__(self, dataframe: pd.DataFrame, parent=None):
         QAbstractTableModel.__init__(self, parent)
         self.df = dataframe.round(9)
         self.df = self.df.reset_index(drop=True)
-        self.krw_row = self.df[self.df["화폐종류"].str.contains("KRW")].index
         self.plus_profit_row = self.df.index[(self.df['수익률'] >= 0)].tolist()
         self.minus_profit_row = self.df.index[(self.df['수익률'] < 0)].tolist()
 
@@ -41,10 +40,7 @@ class AccountInfoPandasModel(QAbstractTableModel):
             red = QColor(238, 64, 53, 200)
             blue = QColor(3, 146, 207, 200)
             gray = QColor(116, 109, 105, 70)
-            green = QColor("#5F7161")
-            if index.row() in self.krw_row:
-                return QBrush(green)
-            elif index.row() in self.plus_profit_row:
+            if index.row() in self.plus_profit_row:
                 return QBrush(red)
             elif index.row() in self.minus_profit_row:
                 return QBrush(blue)
@@ -58,38 +54,69 @@ class AccountInfoPandasModel(QAbstractTableModel):
                 return Qt.AlignCenter
         elif role == Qt.DisplayRole:
             target_data = self.df.iloc[index.row(), index.column()]
-            if index.column() == 1:  # 보유수량
-                # KRW 이거나 소수점이 없으면 소수점 자리수 출력 안함
-                if self.df.iloc[index.row(), 0].startswith("KRW") or self.df.iloc[index.row(), 1] % 1 == 0:
+            if index.column() == 1:  # 총 매수 수량
+                if pd.isnull(target_data):
+                    return ""
+                elif self.df.iloc[index.row(), 1] % 1 == 0:
                     return f'{target_data:,.0f}'
                 else:
                     return f'{target_data:,.8f}'
-            elif index.column() == 2:  # 매수평균가
-                return f'{target_data:,.0f} KRW'
-            elif index.column() == 3:  # 현재가
-                if pd.isnull(target_data):
-                    return ''
-                else:
-                    return f'{target_data:,.0f} KRW'
-            elif index.column() == 4:  # 매수금액
-                return f'{target_data:,.0f} KRW'
-            elif index.column() == 5:  # 평가금액
+            elif index.column() == 2:  # 총 매도 수량
                 if pd.isnull(target_data):
                     return ""
+                elif self.df.iloc[index.row(), 2] % 1 == 0:
+                    return f'{target_data:,.0f}'
                 else:
-                    return f'{target_data:,.0f} KRW'
-            elif index.column() == 6:  # 평가손익
+                    return f'{target_data:,.8f}'
+            elif index.column() == 3:  # 미실현수량
                 if pd.isnull(target_data):
                     return ""
+                elif self.df.iloc[index.row(), 3] % 1 == 0:
+                    return f'{target_data:,.0f}'
                 else:
+                    return f'{target_data:,.8f}'
+            elif index.column() == 4:  # 총 매수금액
+                if pd.isnull(target_data):
+                    return ""
+                elif self.df.iloc[index.row(), 0].startswith("KRW"):
                     return f'{target_data:,.0f} KRW'
-            elif index.column() == 7:  # 수익률
+                elif self.df.iloc[index.row(), 0].startswith("BTC"):
+                    return f'{target_data:,.8f} BTC'
+            elif index.column() == 5:  # 총 매도금액
+                if pd.isnull(target_data):
+                    return ""
+                elif self.df.iloc[index.row(), 0].startswith("KRW"):
+                    return f'{target_data:,.0f} KRW'
+                elif self.df.iloc[index.row(), 0].startswith("BTC"):
+                    return f'{target_data:,.8f} BTC'
+            elif index.column() == 6:  # 매수 평단가
+                if pd.isnull(target_data):
+                    return ""
+                elif self.df.iloc[index.row(), 0].startswith("KRW"):
+                    return f'{target_data:,.0f} KRW'
+                elif self.df.iloc[index.row(), 0].startswith("BTC"):
+                    return f'{target_data:,.8f} BTC'
+            elif index.column() == 7:  # 매도 평단가
+                if pd.isnull(target_data):
+                    return ""
+                elif self.df.iloc[index.row(), 0].startswith("KRW"):
+                    return f'{target_data:,.0f} KRW'
+                elif self.df.iloc[index.row(), 0].startswith("BTC"):
+                    return f'{target_data:,.8f} BTC'
+            elif index.column() == 8:  # 실현손익
+                if pd.isnull(target_data):
+                    return ""
+                elif self.df.iloc[index.row(), 0].startswith("KRW"):
+                    return f'{target_data:,.0f} KRW'
+                elif self.df.iloc[index.row(), 0].startswith("BTC"):
+                    return f'{target_data:,.8f} BTC'
+            elif index.column() == 9:  # 수익률
                 if pd.isnull(target_data):
                     return ""
                 else:
                     return f'{target_data:,.2f} %'
-
-            return str(target_data)
+            else:
+                return str(target_data)
 
         return None
 

@@ -3,12 +3,15 @@ import sys
 
 import pandas as pd
 from PySide6 import QtWidgets, QtGui, QtCore
-from upbit.client import Upbit
 
 from dialog.apikey_input_dialog import APIKeyInputDialog
 from dialog.program_info_dialog import ProgramInfoDialog
 from user_setting import UserSetting
+from util.data_manager import DataManager
+from util.thread import Worker
+from util.upbit_caller import UpbitCaller
 from widget.account_info_widget import AccountInfoWidget
+from widget.pnl_coin_widget import PnlCoinWidget
 from widget.transaction_history_widget import TransactionHistoryWidget
 
 
@@ -16,10 +19,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
         upbit_config = UserSetting().upbit
-        self.upbit_client = Upbit(upbit_config["access_key"], upbit_config["secret_key"])
+        self.dm = DataManager()
+        self.upbit = UpbitCaller(upbit_config["access_key"], upbit_config["secret_key"])
 
-        api_key_test_response = self.upbit_client.APIKey.APIKey_info()['response']
+        # Thread workers
+        self.asset_thread_worker = Worker(run_func=self.asset_thread_worker_fn, parent=self)
+        self.orders_thread_worker = Worker(run_func=self.orders_thread_worker_fn, parent=self)
 
+        api_key_test_response = self.upbit.api_key_test()
         if not api_key_test_response:
             QtWidgets.QMessageBox.information(self, 'wollala-upbit 메시지',
                                               'Upbit 서버의 응답이 없습니다.')
@@ -29,72 +36,21 @@ class MainWindow(QtWidgets.QMainWindow):
                                               f'upbit 서버와 API key 인증과정에서 문제가 생겼습니다.\n'
                                               f'{error_text}')
 
-        self.get_market_all_info_by_upbit()
+        all_markets_ticker = self.upbit.request_all_markets_ticker()
+        self.dm.krw_markets = all_markets_ticker['krw_markets']
+        self.dm.btc_markets = all_markets_ticker['btc_markets']
 
-        # Account Info Widget
-        self.account_info_widget = AccountInfoWidget(parent=self,
-                                                     upbit_client=self.upbit_client,
-                                                     krw_markets=self.krw_markets,
-                                                     btc_markets=self.btc_markets)
+        # Create Tab members
+        self.main_tab0_widget = self.create_main_tab0()
 
-        # 거래내역 관련 Widget
-        self.transaction_history_widget = TransactionHistoryWidget(parent=self,
-                                                                   upbit_client=self.upbit_client,
-                                                                   krw_markets=self.krw_markets,
-                                                                   btc_markets=self.btc_markets)
-
-        # 계산결과 출력 Widget
-        self.calculate_console_widget = QtWidgets.QTextBrowser(parent=self)
-        self.calculate_console_widget.setStyleSheet(
-            "background-color: rgb(34, 40, 64);"
-            "color: rgb(157, 159, 170)"
-        )
-        self.calculate_console_widget.setAcceptRichText(True)
-        self.account_info_widget.account_info_tableview.sumFinished.connect(self.krw_sum_finished)
-        self.transaction_history_widget.order_history_tableview.sumFinished.connect(self.sum_finished)
-        self.transaction_history_widget.order_history_tableview.meanFinished.connect(self.mean_finished)
-        self.transaction_history_widget.order_history_tableview.bidMinusAskFinished.connect(self.bid_minus_ask_finished)
-        self.transaction_history_widget.order_history_tableview.askMinusBidFinished.connect(self.ask_minus_bid_finished)
-
-        # splitter widget
-        top_frame = QtWidgets.QFrame(parent=self)
-        top_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        top_layout = QtWidgets.QHBoxLayout()
-        top_layout.addWidget(self.account_info_widget)
-        top_frame.setLayout(top_layout)
-
-        mid_frame = QtWidgets.QFrame(parent=self)
-        mid_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        mid_layout = QtWidgets.QHBoxLayout()
-        mid_layout.addWidget(self.transaction_history_widget)
-        mid_frame.setLayout(mid_layout)
-
-        bottom_frame = QtWidgets.QFrame(parent=self)
-        bottom_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        bottom_layout = QtWidgets.QHBoxLayout()
-        bottom_layout.addWidget(self.calculate_console_widget)
-        bottom_frame.setLayout(bottom_layout)
-
-        splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical, parent=self)
-        splitter.addWidget(top_frame)
-        splitter.addWidget(mid_frame)
-        splitter.addWidget(bottom_frame)
-        splitter.setHandleWidth(5)
-        splitter.setSizes([300, 600, 100])
-
-        # tab widget
-        investment_details_widget = QtWidgets.QFrame(parent=self)
-        investment_details_layout = QtWidgets.QHBoxLayout()
-        investment_details_layout.addWidget(splitter)
-        investment_details_widget.setLayout(investment_details_layout)
-
+        # Tab widget
         tab_widget = QtWidgets.QTabWidget(parent=self)
-        tab_widget.addTab(investment_details_widget, "투자내역")
+        tab_widget.addTab(self.main_tab0_widget, "투자내역")
 
         # Progress Bar
         self.progressbar = QtWidgets.QProgressBar(parent=self)
         self.progressbar.setTextVisible(True)
-        self.progressbar.setAlignment(QtCore.Qt.AlignCenter)
+        self.progressbar.setAlignment(QtCore.Qt.AlignCenter)  # noqa
         self.progressbar.setMaximumWidth(500)
         self.statusBar().addPermanentWidget(self.progressbar)
         self.transaction_history_widget.loading_progress_order_history_changed.connect(self.update_progressbar)
@@ -120,7 +76,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # API key 입력 dialog
         self.api_key_input_dialog = APIKeyInputDialog(parent=self)
-        self.api_key_input_dialog.upbit_client_updated.connect(self.update_upbit_client)
+        self.api_key_input_dialog.upbit_client_updated.connect(self.updated_upbit_client)
         self.api_key_input_dialog.hide()
 
         # 프로그램 정보 dialog
@@ -133,38 +89,38 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setMinimumWidth(1240)
 
     @QtCore.Slot()
-    def api_key_menu_clicked(self, s):
+    def api_key_menu_clicked(self, s):  # noqa
         self.api_key_input_dialog.show()
 
     @QtCore.Slot()
-    def info_menu_clicked(self, s):
+    def info_menu_clicked(self, s):  # noqa
         self.program_info_dialog.show()
 
     @QtCore.Slot()
     def krw_sum_finished(self, df, result):
         df = df.reset_index(drop=True)
-        result_str = '<b><font color="#f3f3f4">' + "{0:,.0f}".format(result) + "</font></b>"
+        result_str = f'<b><font color="#f3f3f4">{result:,.0f}</font></b>'
         format_str = ''
 
         for idx in df.index:
             if not pd.isnull(df.loc[idx]):
-                format_str = format_str + ' + ' + "{0:,.0f}".format(df.loc[idx])
+                format_str = f'{format_str} + {df.loc[idx]:,.0f}'
         format_str = format_str[3:]
-        result_str = result_str + " = " + format_str
+        result_str = f'{result_str} = {format_str}'
         self.calculate_console_widget.append("합 계산 결과")
         self.calculate_console_widget.append(result_str)
 
     @QtCore.Slot()
     def sum_finished(self, df, result):
         df = df.reset_index(drop=True)
-        result_str = '<b><font color="#f3f3f4">' + "{0:,.8f}".format(result) + "</font></b>"
+        result_str = f'<b><font color="#f3f3f4">{result:,.0f}</font></b>'
         format_str = ''
 
         for idx in df.index:
             if not pd.isnull(df.loc[idx]):
-                format_str = format_str + ' + ' + "{0:,.8f}".format(df.loc[idx])
+                format_str = f'{format_str} + {df.loc[idx]:,.0f}'
         format_str = format_str[3:]
-        result_str = result_str + " = " + format_str
+        result_str = f'{result_str} = {format_str}'
         self.calculate_console_widget.append("합 계산 결과")
         self.calculate_console_widget.append(result_str)
 
@@ -172,23 +128,21 @@ class MainWindow(QtWidgets.QMainWindow):
     def mean_finished(self, trading_volume_df, trading_price_df, result):
         trading_volume_df = trading_volume_df.reset_index(drop=True)
         trading_price_df = trading_price_df.reset_index(drop=True)
-        result_str = '<b><font color="#f3f3f4">' + "{0:,.8f}".format(result) + "</font></b>"
+        result_str = f'<b><font color="#f3f3f4">{result:,.8f}</font></b>'
         format_str0 = ''
         format_str1 = ''
 
         for i in trading_volume_df.index:
-            format_str0 = format_str0 + ' + ' + "{0:,.8f}".format(trading_volume_df.loc[i]) + ' x ' + "{0:,.8f}".format(
-                trading_price_df.loc[i])
+            format_str0 = f'{format_str0} + {trading_volume_df.loc[i]:,.8f} x {trading_price_df.loc[i]:,.8f}'
 
         for i in trading_volume_df.index:
-            format_str1 = format_str1 + ' + ' + "{0:,.8f}".format(trading_volume_df.loc[i])
+            format_str1 = f'{format_str1} + {trading_volume_df.loc[i]:,.8f}'
 
         format_str0 = format_str0[3:]
         format_str1 = format_str1[3:]
-        result_str = result_str + ' = ' + '<b><font color="#cecfd5">(</fond></b>' + format_str0 + \
-                     '<b><font color="#cecfd5">)</fond></b>' + ' / ' + \
-                     '<b><font color="#cecfd5">(</fond></b>' + \
-                     format_str1 + '<b><font color="#cecfd5">)</fond></b>'
+        result_str = f'{result_str} =' \
+                     f'<b><font color="#cecfd5">(</fond></b>{format_str0}<b><font color="#cecfd5">)</fond></b>' \
+                     f'<b><font color="#cecfd5">(</fond></b>{format_str1}<b><font color="#cecfd5">)</fond></b>'
 
         self.calculate_console_widget.append("평단가 계산 결과")
         self.calculate_console_widget.append(result_str)
@@ -197,22 +151,22 @@ class MainWindow(QtWidgets.QMainWindow):
     def ask_minus_bid_finished(self, ask_df, bid_df, result):
         ask_df = ask_df.reset_index(drop=True)
         bid_df = bid_df.reset_index(drop=True)
-        result_str = '<b><font color="#f3f3f4">' + "{0:,.8f}".format(result) + "</font></b>"
+        result_str = f'<b><font color="#f3f3f4">{result:,.8f}</font></b>'
         format_str0 = ''
         format_str1 = ''
 
         for idx in ask_df.index:
             if not pd.isnull(ask_df.loc[idx]):
-                format_str0 = format_str0 + ' + ' + "{0:,.8f}".format(ask_df.loc[idx])
+                format_str0 = f'{format_str0} + {ask_df.loc[idx]:,.8f}'
         format_str0 = format_str0[3:]
-        format_str0 = '<b><font color="#cecfd5">(</fond></b>' + format_str0 + '<b><font color="#cecfd5">)</fond></b>'
+        format_str0 = f'<b><font color="#cecfd5">(</fond></b>{format_str0}<b><font color="#cecfd5">)</fond></b>'
 
         for idx in bid_df.index:
             if not pd.isnull(bid_df.loc[idx]):
-                format_str1 = format_str1 + ' + ' + "{0:,.8f}".format(bid_df.loc[idx])
+                format_str1 = f'{format_str1} + {bid_df.loc[idx]:,.8f}'
         format_str1 = format_str1[3:]
-        format_str1 = '<b><font color="#cecfd5">(</fond></b>' + format_str1 + '<b><font color="#cecfd5">)</fond></b>'
-        result_str = result_str + " = " + format_str0 + " - " + format_str1
+        format_str1 = f'<b><font color="#cecfd5">(</fond></b>{format_str1}<b><font color="#cecfd5">)</fond></b>'
+        result_str = f'{result_str} = {format_str0} - {format_str1}'
         self.calculate_console_widget.append("매도 - 매수 계산 결과")
         self.calculate_console_widget.append(result_str)
 
@@ -220,22 +174,22 @@ class MainWindow(QtWidgets.QMainWindow):
     def bid_minus_ask_finished(self, bid_df, ask_df, result):
         ask_df = ask_df.reset_index(drop=True)
         bid_df = bid_df.reset_index(drop=True)
-        result_str = '<b><font color="#f3f3f4">' + "{0:,.8f}".format(result) + "</font></b>"
+        result_str = f'<b><font color="#f3f3f4">{result:,.8f}</font></b>'
         format_str0 = ''
         format_str1 = ''
 
         for idx in ask_df.index:
             if not pd.isnull(ask_df.loc[idx]):
-                format_str0 = format_str0 + ' + ' + "{0:,.8f}".format(ask_df.loc[idx])
+                format_str0 = f'{format_str0} + {ask_df.loc[idx]:,.8f}'
         format_str0 = format_str0[3:]
-        format_str0 = '<b><font color="#cecfd5">(</fond></b>' + format_str0 + '<b><font color="#cecfd5">)</fond></b>'
+        format_str0 = f'<b><font color="#cecfd5">(</fond></b>{format_str0}<b><font color="#cecfd5">)</fond></b>'
 
         for idx in bid_df.index:
             if not pd.isnull(bid_df.loc[idx]):
-                format_str1 = format_str1 + ' + ' + "{0:,.8f}".format(bid_df.loc[idx])
+                format_str1 = f'{format_str1} + {bid_df.loc[idx]:,.8f}'
         format_str1 = format_str1[3:]
-        format_str1 = '<b><font color="#cecfd5">(</fond></b>' + format_str1 + '<b><font color="#cecfd5">)</fond></b>'
-        result_str = result_str + " = " + format_str1 + " - " + format_str0
+        format_str1 = f'<b><font color="#cecfd5">(</fond></b>{format_str1}<b><font color="#cecfd5">)</fond></b>'
+        result_str = f'{result_str} = {format_str1} - {format_str0}'
         self.calculate_console_widget.append("매도 - 매수 계산 결과")
         self.calculate_console_widget.append(result_str)
 
@@ -251,30 +205,107 @@ class MainWindow(QtWidgets.QMainWindow):
             self.progressbar.setFormat(f'거래내역을 가져오는 중..({self.progressbar.value()} %)')
 
     @QtCore.Slot()
-    def update_upbit_client(self, upbit_client):
-        self.upbit_client = upbit_client
-        self.get_market_all_info_by_upbit()
+    def updated_upbit_client(self):
+        all_markets_ticker = self.upbit.request_all_markets_ticker()
+        self.dm.krw_markets = all_markets_ticker['krw_markets']
+        self.dm.btc_markets = all_markets_ticker['btc_markets']
 
-        self.account_info_widget.upbit_client = self.upbit_client
-        self.account_info_widget.krw_markets = self.krw_markets
-        self.account_info_widget.btc_markets = self.btc_markets
+    def create_main_tab0(self):
+        # Top widget
+        # Account Info Widget
+        self.account_info_widget = AccountInfoWidget(parent=self)
+        self.account_info_widget.account_info_tableview.sumFinished.connect(self.krw_sum_finished)
+        self.account_info_widget.refresh_btn.clicked.connect(self.asset_thread_worker.start)
+        self.asset_thread_worker.finished.connect(self.account_info_widget.updated_asset_df)
+        self.asset_thread_worker.start()
 
-        self.transaction_history_widget.upbit_client = self.upbit_client
-        self.transaction_history_widget.krw_markets = self.krw_markets
-        self.transaction_history_widget.btc_markets = self.btc_markets
+        top_frame = QtWidgets.QFrame(parent=self)
+        top_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        top_layout = QtWidgets.QHBoxLayout()
+        top_layout.addWidget(self.account_info_widget)
+        top_frame.setLayout(top_layout)
 
-    def get_market_all_info_by_upbit(self):
-        market_list = self.upbit_client.Market.Market_info_all()['result']
-        for market in market_list:
-            market["currency"] = market["market"].split('-')[1]
-        self.krw_markets = [item for item in market_list if 'KRW-' in item['market']]
-        self.krw_markets = sorted(self.krw_markets, key=lambda item: item["korean_name"])
-        self.btc_markets = [item for item in market_list if 'BTC-' in item['market']]
-        self.btc_markets = sorted(self.btc_markets, key=lambda item: item["korean_name"])
+        # Mid widget. Mid has 2 tabs
+        # 거래내역 관련 Widget
+        self.transaction_history_widget = TransactionHistoryWidget(parent=self)
+        self.transaction_history_widget.order_history_tableview.sumFinished.connect(self.sum_finished)
+        self.transaction_history_widget.order_history_tableview.meanFinished.connect(self.mean_finished)
+        self.transaction_history_widget.order_history_tableview.bidMinusAskFinished.connect(self.bid_minus_ask_finished)
+        self.transaction_history_widget.order_history_tableview.askMinusBidFinished.connect(self.ask_minus_bid_finished)
+        self.transaction_history_widget.refresh_btn.clicked.connect(self.orders_thread_worker.start)
+        self.orders_thread_worker.finished.connect(self.transaction_history_widget.stop_spinner)
+        self.orders_thread_worker.start()
+        self.upbit.request_order_info_all_progress_changed.connect(
+            self.transaction_history_widget.updated_order_history_df)
+
+        # 코인별 수익률 Widget
+        self.pnl_coin_widget = PnlCoinWidget(parent=self)
+        mid_tab_widget = QtWidgets.QTabWidget(parent=self)
+
+        mid_tab0_frame = QtWidgets.QFrame(parent=self)
+        mid_tab0_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        mid_tab0_layout = QtWidgets.QHBoxLayout()
+        mid_tab0_layout.addWidget(self.transaction_history_widget)
+        mid_tab0_frame.setLayout(mid_tab0_layout)
+
+        mid_tab1_frame = QtWidgets.QFrame(parent=self)
+        mid_tab1_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        mid_tab1_layout = QtWidgets.QHBoxLayout()
+        mid_tab1_layout.addWidget(self.pnl_coin_widget)
+        mid_tab1_frame.setLayout(mid_tab1_layout)
+
+        mid_tab_widget.addTab(mid_tab0_frame, "거래내역")
+        mid_tab_widget.addTab(mid_tab1_frame, "기간손익")
+
+        # Bottom widget.
+        # 계산결과 출력 Widget
+        self.calculate_console_widget = QtWidgets.QTextBrowser(parent=self)
+        self.calculate_console_widget.setStyleSheet(
+            "background-color: rgb(34, 40, 64);"
+            "color: rgb(157, 159, 170)"
+        )
+        self.calculate_console_widget.setAcceptRichText(True)
+        bottom_frame = QtWidgets.QFrame(parent=self)
+        bottom_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        bottom_layout = QtWidgets.QHBoxLayout()
+        bottom_layout.addWidget(self.calculate_console_widget)
+        bottom_frame.setLayout(bottom_layout)
+
+        splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical, parent=self)
+        splitter.addWidget(top_frame)
+        splitter.addWidget(mid_tab_widget)
+        splitter.addWidget(bottom_frame)
+        splitter.setHandleWidth(5)
+        splitter.setSizes([300, 600, 100])
+
+        layout = QtWidgets.QHBoxLayout()
+        layout.addWidget(splitter)
+        widget = QtWidgets.QFrame(parent=self)
+        widget.setLayout(layout)
+
+        return widget
+
+    def closeEvent(self, e):
+        # for thread terminate
+        self.asset_thread_worker.stop()
+        self.orders_thread_worker.stop()
+
+    def asset_thread_worker_fn(self):
+        account_info_list = self.upbit.request_account_info_list()
+        markets_string = self.dm.extract_markets_string_in_asset(account_info_list)
+        krw_price_list = self.upbit.request_price_list(markets_string['krw_markets_string'])
+        btc_price_list = self.upbit.request_price_list(markets_string['btc_markets_string'])
+        self.dm.asset_coins_price_df = self.dm.create_asset_coins_price_df(krw_price_list, btc_price_list)
+        self.dm.asset_df = self.dm.create_asset_df(account_info_list, self.dm.asset_coins_price_df)
+        self.dm.asset_summary_df = self.dm.create_asset_summary_df(self.dm.asset_df)
+
+    def orders_thread_worker_fn(self):
+        self.upbit.request_order_info_all_df()
 
 
-app = QtWidgets.QApplication([])
-main_window = MainWindow()
-main_window.showMaximized()
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    main_window = MainWindow()
+    main_window.showMaximized()
 
-sys.exit(app.exec())
+    sys.exit(app.exec())

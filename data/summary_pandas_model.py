@@ -8,13 +8,13 @@ class SummaryPandasModel(QAbstractTableModel):
 
     def __init__(self, dataframe: pd.DataFrame, parent=None):
         QAbstractTableModel.__init__(self, parent)
-        self.df = dataframe
+        self.df = dataframe.round(9)
+        self.df = self.df.reset_index(drop=True)
         self.plus_profit_row = self.df.index[(self.df['수익률'] >= 0)].tolist()
         self.minus_profit_row = self.df.index[(self.df['수익률'] < 0)].tolist()
 
     def rowCount(self, parent=QModelIndex()) -> int:
         """ Override method from QAbstractTableModel
-
         Return row count of the pandas DataFrame
         """
         if parent == QModelIndex():
@@ -24,7 +24,6 @@ class SummaryPandasModel(QAbstractTableModel):
 
     def columnCount(self, parent=QModelIndex()) -> int:
         """Override method from QAbstractTableModel
-
         Return column count of the pandas DataFrame
         """
         if parent == QModelIndex():
@@ -58,27 +57,26 @@ class SummaryPandasModel(QAbstractTableModel):
             target_data = self.df.iloc[index.row(), index.column()]
 
             if index.column() == 0:  # 보유KRW
-                return "{0:,.0f} KRW".format(target_data)
+                return f'{target_data:,.0f} KRW'
             elif index.column() == 1:  # 총 보유자산
-                return "{0:,.0f} KRW".format(target_data)
+                return f'{target_data:,.0f} KRW'
             elif index.column() == 2:  # 투자비율
-                return "{0:,.2f} %".format(target_data)
+                return f'{target_data:,.2f} %'
             elif index.column() == 3:  # 총매수
-                return "{0:,.0f} KRW".format(target_data)
+                return f'{target_data:,.0f} KRW'
             elif index.column() == 4:  # 총평가
-                return "{0:,.0f} KRW".format(target_data)
+                return f'{target_data:,.0f} KRW'
             elif index.column() == 5:  # 평가손익
-                return "{0:,.0f} KRW".format(target_data)
+                return f'{target_data:,.0f} KRW'
             elif index.column() == 6:  # 수익률
-                return "{0:,.2f} %".format(target_data)
+                return f'{target_data:,.2f} %'
             else:
                 return str(target_data)
 
         return None
 
-    def headerData(self, section: int, orientation: Qt.Orientation, role: Qt.ItemDataRole):
+    def headerData(self, section: int, orientation: Qt.Orientation, role=Qt.DisplayRole):
         """Override method from QAbstractTableModel
-
         Return dataframe index as vertical header data and columns as horizontal header data.
         """
         if role == Qt.DisplayRole:

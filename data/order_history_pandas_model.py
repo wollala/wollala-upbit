@@ -14,7 +14,6 @@ class OrderHistoryPandasModel(QAbstractTableModel):
 
     def rowCount(self, parent=QModelIndex()) -> int:
         """ Override method from QAbstractTableModel
-
         Return row count of the pandas DataFrame
         """
         if parent == QModelIndex():
@@ -24,7 +23,6 @@ class OrderHistoryPandasModel(QAbstractTableModel):
 
     def columnCount(self, parent=QModelIndex()) -> int:
         """Override method from QAbstractTableModel
-
         Return column count of the pandas DataFrame
         """
         if parent == QModelIndex():
@@ -33,7 +31,6 @@ class OrderHistoryPandasModel(QAbstractTableModel):
 
     def data(self, index: QModelIndex, role=Qt.ItemDataRole):
         """Override method from QAbstractTableModel
-
         Return data cell from the pandas DataFrame
         """
         if not index.isValid():
@@ -58,37 +55,36 @@ class OrderHistoryPandasModel(QAbstractTableModel):
                 return target_data.strftime("%Y/%m/%d %H:%M:%S")
             elif index.column() == 3:  # 거래수량
                 if self.df.iloc[index.row(), 3] % 1 == 0:
-                    return "{0:,.0f}".format(target_data)
+                    return f'{target_data:,.0f}'
                 else:
-                    return "{0:,.8f}".format(target_data)
+                    return f'{target_data:,.8f}'
             elif index.column() == 4:  # 거래단가
                 if self.df.iloc[index.row(), 1].startswith("KRW"):
-                    return "{0:,.0f} KRW".format(target_data)
+                    return f'{target_data:,.0f} KRW'
                 elif self.df.iloc[index.row(), 1].startswith("BTC"):
-                    return "{0:,.8f} BTC".format(target_data)
+                    return f'{target_data:,.8f} BTC'
             elif index.column() == 5:  # 거래금액
                 if self.df.iloc[index.row(), 1].startswith("KRW"):
-                    return "{0:,.0f} KRW".format(target_data)
+                    return f'{target_data:,.0f} KRW'
                 elif self.df.iloc[index.row(), 1].startswith("BTC"):
-                    return "{0:,.8f} BTC".format(target_data)
+                    return f'{target_data:,.8f} BTC'
             elif index.column() == 6:  # 수수료
                 if self.df.iloc[index.row(), 1].startswith("KRW"):
-                    return "{0:,.0f} KRW".format(target_data)
+                    return f'{target_data:,.0f} KRW'
                 elif self.df.iloc[index.row(), 1].startswith("BTC"):
-                    return "{0:,.8f} BTC".format(target_data)
+                    return f'{target_data:,.8f} BTC'
             elif index.column() == 7:  # 정산금액
                 if self.df.iloc[index.row(), 1].startswith("KRW"):
-                    return "{0:,.0f} KRW".format(target_data)
+                    return f'{target_data:,.0f} KRW'
                 elif self.df.iloc[index.row(), 1].startswith("BTC"):
-                    return "{0:,.8f} BTC".format(target_data)
+                    return f'{target_data:,.8f} BTC'
             else:
                 return str(target_data)
 
         return None
 
-    def headerData(self, section: int, orientation: Qt.Orientation, role: Qt.ItemDataRole):
+    def headerData(self, section: int, orientation: Qt.Orientation, role=Qt.DisplayRole):
         """Override method from QAbstractTableModel
-
         Return dataframe index as vertical header data and columns as horizontal header data.
         """
         if role == Qt.DisplayRole:

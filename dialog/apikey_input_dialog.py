@@ -1,11 +1,11 @@
 from PySide6 import QtCore, QtWidgets
-from upbit.client import Upbit
 
 from user_setting import UserSetting
+from util.upbit_caller import UpbitCaller
 
 
 class APIKeyInputDialog(QtWidgets.QDialog):
-    upbit_client_updated = QtCore.Signal(Upbit)
+    upbit_client_updated = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(APIKeyInputDialog, self).__init__(parent=parent)
@@ -14,7 +14,6 @@ class APIKeyInputDialog(QtWidgets.QDialog):
         self.upbit_settings = self.user_setting.upbit
         self.api_access_key = self.upbit_settings["access_key"]
         self.api_secret_key = self.upbit_settings["secret_key"]
-        self.upbit_client = None
 
         _api_access_key_label = QtWidgets.QLabel("Access key")
         _api_secret_key_label = QtWidgets.QLabel("Secret key")
@@ -57,11 +56,11 @@ class APIKeyInputDialog(QtWidgets.QDialog):
         _user_setting.upbit['secret_key'] = self.api_secret_key
         _user_setting.write_config_file()
 
-        self.upbit_client = Upbit(self.api_access_key, self.api_secret_key)
-        response = self.upbit_client.APIKey.APIKey_info()['response']
+        upbit_caller = UpbitCaller(self.api_access_key, self.api_secret_key)
+        response = upbit_caller.api_key_test()
 
         if response['ok']:
-            self.upbit_client_updated.emit(self.upbit_client)
+            self.upbit_client_updated.emit()
             self.hide()
         else:
             error_response = eval(response["text"])

@@ -1,5 +1,6 @@
-import io
 import csv
+import io
+
 import pandas as pd
 from PySide6 import QtWidgets, QtCore, QtGui
 
