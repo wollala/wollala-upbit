@@ -1,4 +1,3 @@
-import json
 import sys
 
 import pandas as pd
@@ -31,10 +30,9 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.information(self, 'wollala-upbit 메시지',
                                               'Upbit 서버의 응답이 없습니다.')
         elif not api_key_test_response['ok']:
-            error_text = json.loads(api_key_test_response["text"])['error']['message']
             QtWidgets.QMessageBox.information(self, 'wollala-upbit 메시지',
                                               f'upbit 서버와 API key 인증과정에서 문제가 생겼습니다.\n'
-                                              f'{error_text}')
+                                              f'{api_key_test_response["reason"]}')
 
         all_markets_ticker = self.upbit.request_all_markets_ticker()
         self.dm.krw_markets = all_markets_ticker['krw_markets']
@@ -99,7 +97,8 @@ class MainWindow(QtWidgets.QMainWindow):
     @QtCore.Slot()
     def krw_sum_finished(self, df, result):
         df = df.reset_index(drop=True)
-        result_str = f'<b><font color="#f3f3f4">{result:,.0f}</font></b>'
+        result = f'{result:,.0f}' if result % 1 == 0 else f'{result:,.8f}'
+        result_str = f'<b><font color="#f3f3f4">{result}</font></b>'
         format_str = ''
 
         for idx in df.index:
@@ -113,12 +112,16 @@ class MainWindow(QtWidgets.QMainWindow):
     @QtCore.Slot()
     def sum_finished(self, df, result):
         df = df.reset_index(drop=True)
-        result_str = f'<b><font color="#f3f3f4">{result:,.0f}</font></b>'
+        result = f'{result:,.0f}' if result % 1 == 0 else f'{result:,.8f}'
+        result_str = f'<b><font color="#f3f3f4">{result}</font></b>'
         format_str = ''
 
         for idx in df.index:
             if not pd.isnull(df.loc[idx]):
-                format_str = f'{format_str} + {df.loc[idx]:,.0f}'
+                if df.loc[idx] % 1 == 0:
+                    format_str = f'{format_str} + {df.loc[idx]:,.0f}'
+                else:
+                    format_str = f'{format_str} + {df.loc[idx]:,.8f}'
         format_str = format_str[3:]
         result_str = f'{result_str} = {format_str}'
         self.calculate_console_widget.append("합 계산 결과")
@@ -128,7 +131,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def mean_finished(self, trading_volume_df, trading_price_df, result):
         trading_volume_df = trading_volume_df.reset_index(drop=True)
         trading_price_df = trading_price_df.reset_index(drop=True)
-        result_str = f'<b><font color="#f3f3f4">{result:,.8f}</font></b>'
+        result = f'{result:,.0f}' if result % 1 == 0 else f'{result:,.8f}'
+        result_str = f'<b><font color="#f3f3f4">{result}</font></b>'
         format_str0 = ''
         format_str1 = ''
 
@@ -141,7 +145,7 @@ class MainWindow(QtWidgets.QMainWindow):
         format_str0 = format_str0[3:]
         format_str1 = format_str1[3:]
         result_str = f'{result_str} =' \
-                     f'<b><font color="#cecfd5">(</fond></b>{format_str0}<b><font color="#cecfd5">)</fond></b>' \
+                     f'<b><font color="#cecfd5">(</fond></b>{format_str0}<b><font color="#cecfd5">)</fond></b> / ' \
                      f'<b><font color="#cecfd5">(</fond></b>{format_str1}<b><font color="#cecfd5">)</fond></b>'
 
         self.calculate_console_widget.append("평단가 계산 결과")
@@ -151,7 +155,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def ask_minus_bid_finished(self, ask_df, bid_df, result):
         ask_df = ask_df.reset_index(drop=True)
         bid_df = bid_df.reset_index(drop=True)
-        result_str = f'<b><font color="#f3f3f4">{result:,.8f}</font></b>'
+        result = f'{result:,.0f}' if result % 1 == 0 else f'{result:,.8f}'
+        result_str = f'<b><font color="#f3f3f4">{result}</font></b>'
         format_str0 = ''
         format_str1 = ''
 
@@ -174,7 +179,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def bid_minus_ask_finished(self, bid_df, ask_df, result):
         ask_df = ask_df.reset_index(drop=True)
         bid_df = bid_df.reset_index(drop=True)
-        result_str = f'<b><font color="#f3f3f4">{result:,.8f}</font></b>'
+        result = f'{result:,.0f}' if result % 1 == 0 else f'{result:,.8f}'
+        result_str = f'<b><font color="#f3f3f4">{result}</font></b>'
         format_str0 = ''
         format_str1 = ''
 
@@ -240,6 +246,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 코인별 수익률 Widget
         self.pnl_coin_widget = PnlCoinWidget(parent=self)
+        self.pnl_coin_widget.pnl_coin_table_view.sumFinished.connect(self.sum_finished)
+
+        # Layout
         mid_tab_widget = QtWidgets.QTabWidget(parent=self)
 
         mid_tab0_frame = QtWidgets.QFrame(parent=self)
