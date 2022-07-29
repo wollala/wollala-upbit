@@ -1,3 +1,5 @@
+import logging
+
 import pandas as pd
 from PySide6 import QtCore, QtWidgets, QtGui, QtCharts
 
@@ -113,20 +115,23 @@ class AccountInfoWidget(QtWidgets.QWidget):
 
     def updated_asset_df(self):
         # for pie chart
-        self.series.clear()
-        for index, row in self.dm.asset_df.iterrows():
-            if row['화폐종류'] == 'KRW':
-                self.series.append(row['화폐종류'], row['보유수량'])
-            elif row['평가금액'] and not pd.isna(row['평가금액']):
-                self.series.append(row['화폐종류'], row['평가금액'])
+        try:
+            self.series.clear()
+            for index, row in self.dm.asset_df.iterrows():
+                if row['화폐종류'] == 'KRW':
+                    self.series.append(row['화폐종류'], row['보유수량'])
+                elif row['평가금액'] and not pd.isna(row['평가금액']):
+                    self.series.append(row['화폐종류'], row['평가금액'])
 
-        for s in self.series.slices():
-            s.setBorderColor("black")
-            s.setLabel(f'{s.label()} {100 * s.percentage():.2f} %')
+            for s in self.series.slices():
+                s.setBorderColor("black")
+                s.setLabel(f'{s.label()} {100 * s.percentage():.2f} %')
 
-        self.summary_tableview.setModel(SummaryPandasModel(self.dm.asset_summary_df))
-        self.account_info_tableview.setModel(AccountInfoPandasModel(self.dm.asset_df))
-        self.stop_spinner()
+            self.summary_tableview.setModel(SummaryPandasModel(self.dm.asset_summary_df))
+            self.account_info_tableview.setModel(AccountInfoPandasModel(self.dm.asset_df))
+            self.stop_spinner()
+        except Exception as e:
+            logging.exception(e)
 
     def play_spinner(self):
         self.setEnabled(False)

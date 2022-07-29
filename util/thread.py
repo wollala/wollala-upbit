@@ -10,5 +10,4 @@ class Worker(QThread):
         self.run_func()
 
     def stop(self):
-        self.terminate()
-        self.wait(3000)
+        self.quit()

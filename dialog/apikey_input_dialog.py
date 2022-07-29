@@ -56,7 +56,8 @@ class APIKeyInputDialog(QtWidgets.QDialog):
         _user_setting.upbit['secret_key'] = self.api_secret_key
         _user_setting.write_config_file()
 
-        upbit_caller = UpbitCaller(self.api_access_key, self.api_secret_key)
+        upbit_caller = UpbitCaller()
+        upbit_caller.update_upbit_client(self.api_access_key, self.api_secret_key)
         response = upbit_caller.api_key_test()
 
         if response['ok']:

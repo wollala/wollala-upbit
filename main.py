@@ -10,7 +10,7 @@ from util.data_manager import DataManager
 from util.thread import Worker
 from util.upbit_caller import UpbitCaller
 from widget.account_info_widget import AccountInfoWidget
-from widget.pnl_coin_widget import PnlCoinWidget
+from widget.period_pnl_widget import PeriodPnLWidget
 from widget.transaction_history_widget import TransactionHistoryWidget
 
 
@@ -28,10 +28,12 @@ class MainWindow(QtWidgets.QMainWindow):
         api_key_test_response = self.upbit.api_key_test()
         if not api_key_test_response:
             QtWidgets.QMessageBox.information(self, 'wollala-upbit 메시지',
-                                              'Upbit 서버의 응답이 없습니다.')
+                                              f'Upbit 서버의 응답이 없습니다.\n'
+                                              f'처음 사용자라면, API key를 등록 후 사용해주세요.\n')
         elif not api_key_test_response['ok']:
             QtWidgets.QMessageBox.information(self, 'wollala-upbit 메시지',
                                               f'upbit 서버와 API key 인증과정에서 문제가 생겼습니다.\n'
+                                              f'처음 사용자라면, API key를 등록 후 사용해주세요.\n'
                                               f'{api_key_test_response["reason"]}')
 
         all_markets_ticker = self.upbit.request_all_markets_ticker()
@@ -73,9 +75,9 @@ class MainWindow(QtWidgets.QMainWindow):
         help_menu.addAction(info_menu_action)
 
         # API key 입력 dialog
-        self.api_key_input_dialog = APIKeyInputDialog(parent=self)
-        self.api_key_input_dialog.upbit_client_updated.connect(self.updated_upbit_client)
-        self.api_key_input_dialog.hide()
+        self.apikey_input_dialog = APIKeyInputDialog(parent=self)
+        self.apikey_input_dialog.upbit_client_updated.connect(self.updated_upbit_client)
+        self.apikey_input_dialog.hide()
 
         # 프로그램 정보 dialog
         self.program_info_dialog = ProgramInfoDialog(parent=self)
@@ -88,7 +90,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.Slot()
     def api_key_menu_clicked(self, s):  # noqa
-        self.api_key_input_dialog.show()
+        self.apikey_input_dialog.show()
 
     @QtCore.Slot()
     def info_menu_clicked(self, s):  # noqa
@@ -215,6 +217,8 @@ class MainWindow(QtWidgets.QMainWindow):
         all_markets_ticker = self.upbit.request_all_markets_ticker()
         self.dm.krw_markets = all_markets_ticker['krw_markets']
         self.dm.btc_markets = all_markets_ticker['btc_markets']
+        self.asset_thread_worker.start()
+        self.orders_thread_worker.start()
 
     def create_main_tab0(self):
         # Top widget
@@ -245,8 +249,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.transaction_history_widget.updated_order_history_df)
 
         # 코인별 수익률 Widget
-        self.pnl_coin_widget = PnlCoinWidget(parent=self)
-        self.pnl_coin_widget.pnl_coin_table_view.sumFinished.connect(self.sum_finished)
+        self.period_pnl_widget = PeriodPnLWidget(parent=self)
+        self.period_pnl_widget.period_pnl_table_view.sumFinished.connect(self.sum_finished)
 
         # Layout
         mid_tab_widget = QtWidgets.QTabWidget(parent=self)
@@ -260,7 +264,7 @@ class MainWindow(QtWidgets.QMainWindow):
         mid_tab1_frame = QtWidgets.QFrame(parent=self)
         mid_tab1_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         mid_tab1_layout = QtWidgets.QHBoxLayout()
-        mid_tab1_layout.addWidget(self.pnl_coin_widget)
+        mid_tab1_layout.addWidget(self.period_pnl_widget)
         mid_tab1_frame.setLayout(mid_tab1_layout)
 
         mid_tab_widget.addTab(mid_tab0_frame, "거래내역")

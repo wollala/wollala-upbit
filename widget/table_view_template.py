@@ -3,6 +3,7 @@ import io
 
 import pandas as pd
 from PySide6 import QtWidgets, QtCore, QtGui
+from PySide6.QtGui import QColor
 
 
 # 우클릭 메뉴 sum, copy를 기본으로 지원
@@ -12,6 +13,15 @@ class TableViewTemplate(QtWidgets.QTableView):
     def __init__(self, parent=None):
         super(TableViewTemplate, self).__init__(parent=parent)
 
+        # 선택 Cell 색상 설정
+        selection_bg_color = QColor('#346fa1')
+        selection_txt_color = QtCore.Qt.white
+        p = QtGui.QPalette()
+        p.setColor(QtGui.QPalette.Highlight, selection_bg_color)
+        p.setColor(QtGui.QPalette.HighlightedText, selection_txt_color)
+        self.setPalette(p)
+
+        # 우클릭 메뉴 설정
         self.action_group = {
             # "sum": {
             #         "action": sum_action, // action object
@@ -43,6 +53,7 @@ class TableViewTemplate(QtWidgets.QTableView):
         self.menu.addAction(copy_action)
 
     def contextMenuEvent(self, event):
+        super(TableViewTemplate, self).contextMenuEvent(event)
         selected_haeder_list = list(set(  # 중복제거를 위한 set
             map(lambda i: i.model().headerData(i.column(), QtCore.Qt.Horizontal, QtCore.Qt.DisplayRole),
                 self.selectedIndexes())))
@@ -52,7 +63,7 @@ class TableViewTemplate(QtWidgets.QTableView):
                 v['action'].setEnabled(True)
             else:
                 v['action'].setEnabled(False)
-                
+
             if len(selected_haeder_list) == 1 and len(self.selectedIndexes()) > 1:
                 if selected_haeder_list[0] in v['column_list']:
                     v['action'].setEnabled(True)
@@ -63,6 +74,7 @@ class TableViewTemplate(QtWidgets.QTableView):
             self.menu.popup(QtGui.QCursor.pos())
 
     def keyPressEvent(self, event):
+        super(TableViewTemplate, self).keyPressEvent(event)
         # Ctrl+C 처리
         if event.matches(QtGui.QKeySequence.Copy):
             self.copySelection()

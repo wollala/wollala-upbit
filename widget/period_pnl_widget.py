@@ -2,17 +2,17 @@ import pandas as pd
 from PySide6 import QtCore, QtWidgets
 from pytz import timezone
 
-from data.pnl_coin_pandas_model import PnlCoinPandasModel
+from data.period_pnl_pandas_model import PeriodPnLPandasModel
 from util.data_manager import DataManager
 from widget.date_filter_widget import DateFilterWidget
-from widget.pnl_coin_table_view import PnlCoinTableView
+from widget.period_pnl_table_view import PeriodPnLTableView
 
 
-class PnlCoinWidget(QtWidgets.QWidget):
+class PeriodPnLWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
-        super(PnlCoinWidget, self).__init__(parent=parent)
+        super(PeriodPnLWidget, self).__init__(parent=parent)
         self.dm = DataManager()
-        self.pnl_coin_df = pd.DataFrame(
+        self.period_pnl_df = pd.DataFrame(
             columns=["마켓", "총 매수수량", "총 매도수량", "미실현수량", "총 매수금액", "총 매도금액", "매수 평단가", "매도 평단가",
                      "실현손익", "수익률"])
         self._from_date = QtCore.QDate.currentDate()
@@ -22,33 +22,35 @@ class PnlCoinWidget(QtWidgets.QWidget):
 
         def set_from_date(from_date):
             self.from_date = from_date
+
         self.date_filter_widget.from_date_changed.connect(set_from_date)
 
         def set_to_date(to_date):
             self.to_date = to_date
+
         self.date_filter_widget.to_date_changed.connect(set_to_date)
 
         # 테이블
-        self.pnl_coin_table_view = PnlCoinTableView()
-        model = PnlCoinPandasModel(self.pnl_coin_df)
-        self.pnl_coin_table_view.setModel(model)
-        self.pnl_coin_table_view.verticalScrollBar().setFixedWidth(10)
-        self.pnl_coin_table_view.horizontalHeader().setStretchLastSection(True)
-        self.pnl_coin_table_view.setColumnWidth(0, 100)  # 마켓
-        self.pnl_coin_table_view.setColumnWidth(1, 170)  # 총 매수수량
-        self.pnl_coin_table_view.setColumnWidth(2, 170)  # 총 매도수량
-        self.pnl_coin_table_view.setColumnWidth(3, 170)  # 총 매수금액
-        self.pnl_coin_table_view.setColumnWidth(4, 170)  # 총 매도금액
-        self.pnl_coin_table_view.setColumnWidth(5, 170)  # 매수 평단가
-        self.pnl_coin_table_view.setColumnWidth(6, 170)  # 매도 평단가
-        self.pnl_coin_table_view.setColumnWidth(7, 170)  # 미 실현손익
-        self.pnl_coin_table_view.setColumnWidth(8, 170)  # 실현손익
-        self.pnl_coin_table_view.setColumnWidth(9, 80)  # 수익률
+        self.period_pnl_table_view = PeriodPnLTableView()
+        model = PeriodPnLPandasModel(self.period_pnl_df)
+        self.period_pnl_table_view.setModel(model)
+        self.period_pnl_table_view.verticalScrollBar().setFixedWidth(10)
+        self.period_pnl_table_view.horizontalHeader().setStretchLastSection(True)
+        self.period_pnl_table_view.setColumnWidth(0, 100)  # 마켓
+        self.period_pnl_table_view.setColumnWidth(1, 170)  # 총 매수수량
+        self.period_pnl_table_view.setColumnWidth(2, 170)  # 총 매도수량
+        self.period_pnl_table_view.setColumnWidth(3, 170)  # 총 매수금액
+        self.period_pnl_table_view.setColumnWidth(4, 170)  # 총 매도금액
+        self.period_pnl_table_view.setColumnWidth(5, 170)  # 매수 평단가
+        self.period_pnl_table_view.setColumnWidth(6, 170)  # 매도 평단가
+        self.period_pnl_table_view.setColumnWidth(7, 170)  # 미 실현손익
+        self.period_pnl_table_view.setColumnWidth(8, 170)  # 실현손익
+        self.period_pnl_table_view.setColumnWidth(9, 80)  # 수익률
 
         # 레이아웃
         main_layout = QtWidgets.QVBoxLayout(parent=self)
         main_layout.addWidget(self.date_filter_widget)
-        main_layout.addWidget(self.pnl_coin_table_view)
+        main_layout.addWidget(self.period_pnl_table_view)
         self.setLayout(main_layout)
 
     @property
@@ -92,5 +94,5 @@ class PnlCoinWidget(QtWidgets.QWidget):
         if self.dm.order_history_df is not None:
             filterd_df = self.filtering_df(self.dm.order_history_df)
             self.dm.asset_period_pnl_df = self.dm.create_asset_period_pnl_df(filterd_df)
-            model = PnlCoinPandasModel(self.dm.asset_period_pnl_df)
-            self.pnl_coin_table_view.setModel(model)
+            model = PeriodPnLPandasModel(self.dm.asset_period_pnl_df)
+            self.period_pnl_table_view.setModel(model)
