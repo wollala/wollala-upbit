@@ -13,6 +13,9 @@ class TableViewTemplate(QtWidgets.QTableView):
     def __init__(self, parent=None):
         super(TableViewTemplate, self).__init__(parent=parent)
 
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+
         # 선택 Cell 색상 설정
         selection_bg_color = QColor('#346fa1')
         selection_txt_color = QtCore.Qt.white

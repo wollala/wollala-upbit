@@ -34,18 +34,17 @@ class PeriodPnLWidget(QtWidgets.QWidget):
         self.period_pnl_table_view = PeriodPnLTableView()
         model = PeriodPnLPandasModel(self.period_pnl_df)
         self.period_pnl_table_view.setModel(model)
-        self.period_pnl_table_view.verticalScrollBar().setFixedWidth(10)
         self.period_pnl_table_view.horizontalHeader().setStretchLastSection(True)
         self.period_pnl_table_view.setColumnWidth(0, 100)  # 마켓
-        self.period_pnl_table_view.setColumnWidth(1, 170)  # 총 매수수량
-        self.period_pnl_table_view.setColumnWidth(2, 170)  # 총 매도수량
-        self.period_pnl_table_view.setColumnWidth(3, 170)  # 총 매수금액
-        self.period_pnl_table_view.setColumnWidth(4, 170)  # 총 매도금액
-        self.period_pnl_table_view.setColumnWidth(5, 170)  # 매수 평단가
-        self.period_pnl_table_view.setColumnWidth(6, 170)  # 매도 평단가
-        self.period_pnl_table_view.setColumnWidth(7, 170)  # 미 실현손익
-        self.period_pnl_table_view.setColumnWidth(8, 170)  # 실현손익
-        self.period_pnl_table_view.setColumnWidth(9, 80)  # 수익률
+        self.period_pnl_table_view.setColumnWidth(1, 150)  # 총 매수수량
+        self.period_pnl_table_view.setColumnWidth(2, 150)  # 총 매도수량
+        self.period_pnl_table_view.setColumnWidth(3, 150)  # 총 매수금액
+        self.period_pnl_table_view.setColumnWidth(4, 150)  # 총 매도금액
+        self.period_pnl_table_view.setColumnWidth(5, 150)  # 매수 평단가
+        self.period_pnl_table_view.setColumnWidth(6, 150)  # 매도 평단가
+        self.period_pnl_table_view.setColumnWidth(7, 150)  # 미 실현손익
+        self.period_pnl_table_view.setColumnWidth(8, 150)  # 실현손익
+        self.period_pnl_table_view.setColumnWidth(9, 70)  # 수익률
 
         # 레이아웃
         main_layout = QtWidgets.QVBoxLayout(parent=self)

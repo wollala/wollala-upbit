@@ -117,7 +117,6 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
 
         # 테이블
         self.order_history_tableview = OrderHistoryTableView()
-        self.order_history_tableview.verticalScrollBar().setFixedWidth(10)
         model = OrderHistoryPandasModel(self.dm.order_history_df)
         self.order_history_tableview.setModel(model)
         self.order_history_tableview.horizontalHeader().setStretchLastSection(True)

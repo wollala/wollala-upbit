@@ -28,8 +28,12 @@ class DateFilterWidget(QtWidgets.QGroupBox):
         self.month3_btn.setCheckable(True)
         self.month6_btn = QtWidgets.QPushButton("6개월", parent=self)
         self.month6_btn.setCheckable(True)
-        self.year1_btn = QtWidgets.QPushButton("1년", parent=self)
-        self.year1_btn.setCheckable(True)
+        self.month12_btn = QtWidgets.QPushButton("12개월", parent=self)
+        self.month12_btn.setCheckable(True)
+        self.month18_btn = QtWidgets.QPushButton("18개월", parent=self)
+        self.month18_btn.setCheckable(True)
+        self.month24_btn = QtWidgets.QPushButton("24개월", parent=self)
+        self.month24_btn.setCheckable(True)
 
         self.period_btn_group = QtWidgets.QButtonGroup(parent=self)
         self.period_btn_group.addButton(self.today_btn, 0)
@@ -38,7 +42,9 @@ class DateFilterWidget(QtWidgets.QGroupBox):
         self.period_btn_group.addButton(self.month1_btn, 3)
         self.period_btn_group.addButton(self.month3_btn, 4)
         self.period_btn_group.addButton(self.month6_btn, 5)
-        self.period_btn_group.addButton(self.year1_btn, 6)
+        self.period_btn_group.addButton(self.month12_btn, 6)
+        self.period_btn_group.addButton(self.month18_btn, 7)
+        self.period_btn_group.addButton(self.month24_btn, 8)
         self.period_btn_group.buttonClicked.connect(self.period_btn_clicked)  # noqa
 
         self.period_btn_layout = QtWidgets.QHBoxLayout()
@@ -48,7 +54,9 @@ class DateFilterWidget(QtWidgets.QGroupBox):
         self.period_btn_layout.addWidget(self.month1_btn)
         self.period_btn_layout.addWidget(self.month3_btn)
         self.period_btn_layout.addWidget(self.month6_btn)
-        self.period_btn_layout.addWidget(self.year1_btn)
+        self.period_btn_layout.addWidget(self.month12_btn)
+        self.period_btn_layout.addWidget(self.month18_btn)
+        self.period_btn_layout.addWidget(self.month24_btn)
 
         # 날짜 직접 선택 버튼
         self.from_date_btn = QtWidgets.QPushButton(
@@ -109,7 +117,11 @@ class DateFilterWidget(QtWidgets.QGroupBox):
         elif id == 5:
             self.from_date = QtCore.QDate.currentDate().addMonths(-6)
         elif id == 6:
-            self.from_date = QtCore.QDate.currentDate().addYears(-1)
+            self.from_date = QtCore.QDate.currentDate().addMonths(-12)
+        elif id == 7:
+            self.from_date = QtCore.QDate.currentDate().addMonths(-18)
+        elif id == 8:
+            self.from_date = QtCore.QDate.currentDate().addMonths(-24)
 
         self.from_date_btn.setText(
             f'{self.from_date.year()}.{self.from_date.month():02d}.{self.from_date.day():02d}')

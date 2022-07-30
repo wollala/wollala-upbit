@@ -5,11 +5,11 @@ from PySide6.QtGui import QColor
 
 class PandasModelTemplate(QAbstractTableModel):
     # Bootstrap Colors Color Palette
-    red = QColor("#d9534f")
+    red = QColor("#d2d9534f")
     white = QColor("#f9f9f9")
     sky = QColor("#5bc0de")
-    green = QColor("#5cb85c")
-    blue = QColor("#428bca")
+    green = QColor("#d25cb85c")
+    blue = QColor("#d2428bca")
 
     def __init__(self, dataframe: pd.DataFrame, parent=None):
         QAbstractTableModel.__init__(self, parent)
