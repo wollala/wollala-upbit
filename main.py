@@ -85,8 +85,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar()
         self.setCentralWidget(tab_widget)
         self.setWindowTitle('wollala-upbit')
-        self.resize(1240, 1000)
-        self.setMinimumWidth(1240)
+        self.resize(1600, 1000)
 
     @QtCore.Slot()
     def api_key_menu_clicked(self, s):  # noqa
@@ -319,6 +318,6 @@ class MainWindow(QtWidgets.QMainWindow):
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     main_window = MainWindow()
-    main_window.showMaximized()
+    main_window.show()
 
     sys.exit(app.exec())

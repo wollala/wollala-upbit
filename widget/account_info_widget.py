@@ -38,13 +38,13 @@ class AccountInfoWidget(QtWidgets.QWidget):
         self.summary_tableview.verticalHeader().setHidden(True)
         self.summary_tableview.setModel(summary_header_model)
         self.summary_tableview.horizontalHeader().setStretchLastSection(True)
-        self.summary_tableview.setColumnWidth(0, 250)  # 보유KRW
-        self.summary_tableview.setColumnWidth(1, 170)  # 총매수
-        self.summary_tableview.setColumnWidth(2, 170)  # 투자비율
-        self.summary_tableview.setColumnWidth(3, 170)  # 총 보유자산
-        self.summary_tableview.setColumnWidth(4, 170)  # 총평가
-        self.summary_tableview.setColumnWidth(5, 170)  # 평가손익
-        self.summary_tableview.setColumnWidth(6, 80)  # 수익률
+        self.summary_tableview.setColumnWidth(0, 210)  # 보유KRW
+        self.summary_tableview.setColumnWidth(1, 130)  # 총매수
+        self.summary_tableview.setColumnWidth(2, 130)  # 투자비율
+        self.summary_tableview.setColumnWidth(3, 130)  # 총 보유자산
+        self.summary_tableview.setColumnWidth(4, 130)  # 총평가
+        self.summary_tableview.setColumnWidth(5, 130)  # 평가손익
+        self.summary_tableview.setColumnWidth(6, 70)  # 수익률
         self.summary_tableview.setFixedHeight(58)
 
         # TableView
@@ -56,13 +56,13 @@ class AccountInfoWidget(QtWidgets.QWidget):
         self.account_info_tableview.setModel(account_info_header_model)
         self.account_info_tableview.horizontalHeader().setStretchLastSection(True)
         self.account_info_tableview.setColumnWidth(0, 80)  # 화폐종류
-        self.account_info_tableview.setColumnWidth(1, 170)  # 보유수량
-        self.account_info_tableview.setColumnWidth(2, 170)  # 매수평균가
-        self.account_info_tableview.setColumnWidth(3, 170)  # 현재가
-        self.account_info_tableview.setColumnWidth(4, 170)  # 매수금액
-        self.account_info_tableview.setColumnWidth(5, 170)  # 평가금액
-        self.account_info_tableview.setColumnWidth(6, 170)  # 평가손익
-        self.account_info_tableview.setColumnWidth(7, 80)  # 수익률
+        self.account_info_tableview.setColumnWidth(1, 130)  # 보유수량
+        self.account_info_tableview.setColumnWidth(2, 130)  # 매수평균가
+        self.account_info_tableview.setColumnWidth(3, 130)  # 현재가
+        self.account_info_tableview.setColumnWidth(4, 130)  # 매수금액
+        self.account_info_tableview.setColumnWidth(5, 130)  # 평가금액
+        self.account_info_tableview.setColumnWidth(6, 130)  # 평가손익
+        self.account_info_tableview.setColumnWidth(7, 70)  # 수익률
 
         # PieChart
         def on_hovered(slice, state):
@@ -104,7 +104,7 @@ class AccountInfoWidget(QtWidgets.QWidget):
         splitter.addWidget(left_frame)
         splitter.addWidget(right_frame)
         splitter.setHandleWidth(5)
-        splitter.setSizes([500, 200])
+        splitter.setSizes([1100, 500])
 
         main_layout = QtWidgets.QVBoxLayout()
         main_layout.addWidget(splitter)
