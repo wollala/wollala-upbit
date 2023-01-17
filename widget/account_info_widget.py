@@ -118,7 +118,7 @@ class AccountInfoWidget(QtWidgets.QWidget):
         try:
             self.series.clear()
             for index, row in self.dm.asset_df.iterrows():
-                if row['화폐종류'] == 'KRW':
+                if row['화폐종류'] and row['화폐종류'] == 'KRW':
                     self.series.append(row['화폐종류'], row['보유수량'])
                 elif row['평가금액'] and not pd.isna(row['평가금액']):
                     self.series.append(row['화폐종류'], row['평가금액'])

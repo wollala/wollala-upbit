@@ -68,7 +68,7 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         ticker_groupbox_layout.addWidget(self.krw_ticker_btn, 0, 1, 0, 1)
         ticker_groupbox_layout.addWidget(self.btc_ticker_btn, 0, 2, 0, 1)
         ticker_groupbox_layout.addWidget(self.ticker_filter_combobox, 0, 3, 0, 7)
-        ticker_groupbox = QtWidgets.QGroupBox("Tiker filter", parent=self)
+        ticker_groupbox = QtWidgets.QGroupBox("Ticker filter", parent=self)
         ticker_groupbox.setStyleSheet("QGroupBox{font-size: 12px;}")
         ticker_groupbox.setLayout(ticker_groupbox_layout)
 
@@ -134,7 +134,7 @@ class TransactionHistoryWidget(QtWidgets.QWidget):
         self.table_layout.addWidget(self.order_history_tableview)
 
         # 레이아웃
-        main_layout = QtWidgets.QVBoxLayout(parent=self)
+        main_layout = QtWidgets.QVBoxLayout()
         main_layout.addLayout(top_btn_layout)
         main_layout.addWidget(self.date_filter_widget)
         main_layout.addLayout(self.table_layout)
