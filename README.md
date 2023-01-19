@@ -1,6 +1,6 @@
 
 # WOLLALA-UPBIT
-![Generic badge](https://img.shields.io/badge/python-3.8.10-green.svg) 
+![Generic badge](https://img.shields.io/badge/python-3.11-green.svg) 
 ![Generic badge](https://img.shields.io/badge/pyside-6-green.svg)
 
 - wollala-upbit은 upbit의 거래내역을 정리해서 보여줍니다.
@@ -12,11 +12,7 @@
 ---
 # Installation for dev
 ## 1. PreInstallation
-1. Install python3.8.10
-   ```shell
-   $ apt install python3.8
-   $ apt install python3.8-venv
-   ```
+1. Install python3.11, pip,
 
 ## 2. Installation
 1. Clone repo
@@ -27,20 +23,16 @@
 2. Create venv and Activate venv
    ```shell
    $ cd wollala-upbit
-   $ python3.8 -m venv .venv
+   $ python -m venv .venv
    $ source .venv/bin/activate
    ```
    
 3. Install modules in .venv
-   1. (Option 1) Using pip
+   1. Using pip
       ```shell
       $ python -m pip install -r requirements.txt
       # if error, add '--no-dops' option.
       $ python -m pip install --no-deps -r .\requirements.txt
-      ```
-   2. (Option 2) Using poetry (https://python-poetry.org/docs/)
-      ```shell
-      $ poetry install
       ```
 
 4. execute

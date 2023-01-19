@@ -268,7 +268,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         mid_tab_widget.addTab(mid_tab0_frame, "거래내역")
         mid_tab_widget.addTab(mid_tab1_frame, "기간손익")
-
         # Bottom widget.
         # 계산결과 출력 Widget
         self.calculate_console_widget = QtWidgets.QTextBrowser(parent=self)
@@ -305,8 +304,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def asset_thread_worker_fn(self):
         account_info_list = self.upbit.request_account_info_list()
         markets_string = self.dm.extract_markets_string_in_asset(account_info_list)
-        krw_price_list = self.upbit.request_price_list(markets_string['krw_markets_string'])
-        btc_price_list = self.upbit.request_price_list(markets_string['btc_markets_string'])
+        krw_price_list = None
+        btc_price_list = None
+        if markets_string['krw_markets_string']:
+            krw_price_list = self.upbit.request_price_list(markets_string['krw_markets_string'])
+        if markets_string['btc_markets_string']:
+            btc_price_list = self.upbit.request_price_list(markets_string['btc_markets_string'])
         self.dm.asset_coins_price_df = self.dm.create_asset_coins_price_df(krw_price_list, btc_price_list)
         self.dm.asset_df = self.dm.create_asset_df(account_info_list, self.dm.asset_coins_price_df)
         self.dm.asset_summary_df = self.dm.create_asset_summary_df(self.dm.asset_df)

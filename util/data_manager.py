@@ -107,19 +107,33 @@ class DataManager(QtCore.QObject, metaclass=Singleton):
     # btc_price_list는 upbit_caller.request_price_list()의 반환값
     def create_asset_coins_price_df(self, krw_price_list, btc_price_list):
         df = pd.DataFrame()
+        krw_price_df = None
+        btc_price_df = None
         try:
-            krw_price_df = pd.DataFrame(krw_price_list, columns={'market', 'trade_price'})  # trade_price = krw 가격
-            btc_price_df = pd.DataFrame(btc_price_list, columns={'market', 'trade_price'})  # trade_price = btc 가격
-            krw_price_df.rename(columns={'trade_price': 'trade_krw_price'}, inplace=True)
-            btc_price_df.rename(columns={'trade_price': 'trade_btc_price'}, inplace=True)
-            btc_price = krw_price_df.loc[krw_price_df['market'] == 'KRW-BTC']['trade_krw_price'].reset_index(drop=True)
+            if krw_price_list:
+                krw_price_df = pd.DataFrame(krw_price_list, columns=['market', 'trade_price'])  # trade_price = krw 가격
+                krw_price_df.rename(columns={'trade_price': 'trade_krw_price'}, inplace=True)
+                btc_price = krw_price_df.loc[krw_price_df['market'] == 'KRW-BTC']['trade_krw_price'].reset_index(
+                    drop=True)
+            if btc_price_list:
+                btc_price_df = pd.DataFrame(btc_price_list, columns=['market', 'trade_price'])  # trade_price = btc 가격
+                btc_price_df.rename(columns={'trade_price': 'trade_btc_price'}, inplace=True)
+                # KRW 마켓코인: trade_krw_price = 코인의 krw가격
+                # BTC 마켓코인: trade_krw_price = 코인의 btc가격(trade_btc_price) * btc의 krw가격
+                btc_price_df['trade_krw_price'] = btc_price_df.loc[:, 'trade_btc_price'] * btc_price[0]
 
-            # KRW 마켓코인: trade_krw_price = 코인의 krw가격
-            # BTC 마켓코인: trade_krw_price = 코인의 btc가격(trade_btc_price) * btc의 krw가격
-            btc_price_df['trade_krw_price'] = btc_price_df.loc[:, 'trade_btc_price'] * btc_price[0]
             df = pd.concat([krw_price_df, btc_price_df], axis=0)
             df = df.reset_index()
-            df = df[['market', 'trade_krw_price', 'trade_btc_price']]
+
+            columns = []
+            if 'market' in df.columns:
+                columns.append('market')
+            if 'trade_krw_price' in df.columns:
+                columns.append('trade_krw_price')
+            if 'trade_btc_price' in df.columns:
+                columns.append('trade_btc_price')
+
+            df = df[columns]
         except Exception as e:
             logging.exception(e)
         finally:
@@ -130,19 +144,23 @@ class DataManager(QtCore.QObject, metaclass=Singleton):
     def create_asset_df(self, account_info_list, asset_coins_price_df):
         df = pd.DataFrame(account_info_list)
         try:
-            df = pd.merge(df, asset_coins_price_df, how='left', on='market')
+            if 'market' in df.columns and 'market' in asset_coins_price_df:
+                df = pd.merge(df, asset_coins_price_df, how='left', on='market')
+            else:
+                df['trade_krw_price'] = 0.0
+                df['market'] = None
+
             df = df.astype({
                 'locked': float,
                 'balance': float,
                 'avg_buy_price': float,
                 'trade_krw_price': float
             })
-            df['balance'] = df['balance'] + df['locked']
-
-            df.drop(['locked', 'avg_buy_price_modified', 'unit_currency', 'market'], axis=1, inplace=True)
             df.rename(
                 columns={'balance': '보유수량', 'avg_buy_price': '매수평균가', 'currency': '화폐종류', 'trade_krw_price': '현재가'},
                 inplace=True)
+            df['보유수량'] = df['보유수량'] + df['locked']
+            df.drop(['locked', 'avg_buy_price_modified', 'unit_currency', 'market'], axis=1, inplace=True)
 
             df['매수금액'] = df['보유수량'] * df['매수평균가']
             df['평가금액'] = df['보유수량'] * df['현재가']

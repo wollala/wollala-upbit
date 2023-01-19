@@ -47,7 +47,7 @@ class PeriodPnLWidget(QtWidgets.QWidget):
         self.period_pnl_table_view.setColumnWidth(9, 70)  # 수익률
 
         # 레이아웃
-        main_layout = QtWidgets.QVBoxLayout(parent=self)
+        main_layout = QtWidgets.QVBoxLayout()
         main_layout.addWidget(self.date_filter_widget)
         main_layout.addWidget(self.period_pnl_table_view)
         self.setLayout(main_layout)
