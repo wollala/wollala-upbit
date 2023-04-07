@@ -195,7 +195,7 @@ class DataManager(QtCore.QObject, metaclass=Singleton):
             return df
 
     def create_asset_period_pnl_df(self, filterd_order_history_df):
-        df = pd.DataFrame()
+        pnl = 0
         result_df = pd.DataFrame(
             columns=["마켓", "총 매수수량", "총 매도수량", "미실현수량", "총 매수금액", "총 매도금액", "매수 평단가", "매도 평단가",
                      "실현손익", "수익률"])
@@ -220,7 +220,9 @@ class DataManager(QtCore.QObject, metaclass=Singleton):
                     result_df['매수 평단가'] * result_df['총 매도수량'])
             result_df['수익률'] = (result_df['매도 평단가'] - result_df['매수 평단가']) / result_df['매수 평단가'] * 100
             result_df = result_df.sort_values(by="총 매수금액", ascending=False)
+
+            pnl = result_df['실현손익'].sum()
         except Exception as e:
             logging.exception(e)
         finally:
-            return result_df
+            return result_df, pnl

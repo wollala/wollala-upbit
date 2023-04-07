@@ -46,11 +46,14 @@ class PeriodPnLWidget(QtWidgets.QWidget):
         self.period_pnl_table_view.setColumnWidth(8, 150)  # 실현손익
         self.period_pnl_table_view.setColumnWidth(9, 70)  # 수익률
 
+        self.pnl_layout = QtWidgets.QLabel(str(0), self)
+
         # 레이아웃
-        main_layout = QtWidgets.QVBoxLayout()
-        main_layout.addWidget(self.date_filter_widget)
-        main_layout.addWidget(self.period_pnl_table_view)
-        self.setLayout(main_layout)
+        self.main_layout = QtWidgets.QVBoxLayout()
+        self.main_layout.addWidget(self.date_filter_widget)
+        self.main_layout.addWidget(self.period_pnl_table_view)
+        self.main_layout.addWidget(self.pnl_layout)
+        self.setLayout(self.main_layout)
 
     @property
     def from_date(self):
@@ -92,6 +95,9 @@ class PeriodPnLWidget(QtWidgets.QWidget):
     def update_model(self):
         if self.dm.order_history_df is not None:
             filterd_df = self.filtering_df(self.dm.order_history_df)
-            self.dm.asset_period_pnl_df = self.dm.create_asset_period_pnl_df(filterd_df)
+            self.dm.asset_period_pnl_df, pnl = self.dm.create_asset_period_pnl_df(filterd_df)
+
+            self.pnl_layout.setText('{:,}'.format(pnl))
+
             model = PeriodPnLPandasModel(self.dm.asset_period_pnl_df)
             self.period_pnl_table_view.setModel(model)
