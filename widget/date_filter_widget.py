@@ -91,7 +91,7 @@ class DateFilterWidget(QtWidgets.QGroupBox):
         self.from_calender_widget.setMinimumWidth(400)
         self.from_calender_widget.setMinimumHeight(300)
         self.from_calender_widget.setWindowTitle("시작날짜")
-        self.from_calender_widget.setDateRange(QtCore.QDate(2019, 1, 1), QtCore.QDate.currentDate())
+        self.from_calender_widget.setDateRange(QtCore.QDate(2016, 1, 1), QtCore.QDate.currentDate())
         self.from_calender_widget.clicked.connect(self.from_date_clicked)  # noqa
         self.from_calender_widget.closed.connect(lambda: self.from_date_btn.setChecked(False))
 
