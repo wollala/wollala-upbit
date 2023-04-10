@@ -223,7 +223,7 @@ class DataManager(QtCore.QObject, metaclass=Singleton):
             result_df['실현손익'] = (result_df['매도 평단가'] * result_df['총 매도수량']) - (
                     result_df['매수 평단가'] * result_df['총 매도수량'])
             result_df['수익률'] = (result_df['매도 평단가'] - result_df['매수 평단가']) / result_df['매수 평단가'] * 100
-            result_df = result_df.sort_values(by="총 매수금액", ascending=False)
+            result_df = result_df.sort_values(by="실현손익", ascending=False)
 
             pnl_krw = result_df[result_df['마켓'].str.startswith('KRW-')]['실현손익'].sum()
             pnl_btc = result_df[result_df['마켓'].str.startswith('BTC-')]['실현손익'].sum()
