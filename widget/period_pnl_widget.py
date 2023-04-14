@@ -46,11 +46,20 @@ class PeriodPnLWidget(QtWidgets.QWidget):
         self.period_pnl_table_view.setColumnWidth(8, 150)  # 실현손익
         self.period_pnl_table_view.setColumnWidth(9, 70)  # 수익률
 
+        self.pnl_title = QtWidgets.QLabel("[PNL]")
+        self.pnl_since = QtWidgets.QLabel("SINCE: ")
+        self.pnl_krw_layout = QtWidgets.QLabel("KRW: " + str(0), self)
+        self.pnl_btc_layout = QtWidgets.QLabel("BTC: " + str(0), self)
+
         # 레이아웃
-        main_layout = QtWidgets.QVBoxLayout()
-        main_layout.addWidget(self.date_filter_widget)
-        main_layout.addWidget(self.period_pnl_table_view)
-        self.setLayout(main_layout)
+        self.main_layout = QtWidgets.QVBoxLayout()
+        self.main_layout.addWidget(self.date_filter_widget)
+        self.main_layout.addWidget(self.period_pnl_table_view)
+        self.main_layout.addWidget(self.pnl_title)
+        self.main_layout.addWidget(self.pnl_since)
+        self.main_layout.addWidget(self.pnl_krw_layout)
+        self.main_layout.addWidget(self.pnl_btc_layout)
+        self.setLayout(self.main_layout)
 
     @property
     def from_date(self):
@@ -71,27 +80,30 @@ class PeriodPnLWidget(QtWidgets.QWidget):
         self.update_model()
 
     def filtering_df(self, df):
-        result_df = df.sort_values(by='주문시간', ascending=False)
+        result_df = df.sort_values(by="주문시간", ascending=False)
 
-        # 날짜 필터링 님프가
-        from_datetime = QtCore.QDateTime.fromString(f'{self._from_date.toString("yyyy-MM-dd")} 00:00:00',
+        from_datetime = QtCore.QDateTime.fromString(f"{self._from_date.toString('yyyy-MM-dd')} 00:00:00",
                                                     "yyyy-MM-dd hh:mm:ss")
-        to_datetime = QtCore.QDateTime.fromString(f'{self._to_date.toString("yyyy-MM-dd")} 23:59:59',
+        to_datetime = QtCore.QDateTime.fromString(f"{self._to_date.toString('yyyy-MM-dd')} 23:59:59",
                                                   "yyyy-MM-dd hh:mm:ss")
-        from_datetime = from_datetime.toPython().astimezone(timezone('Asia/Seoul'))  # noqa
-        to_datetime = to_datetime.toPython().astimezone(timezone('Asia/Seoul'))  # noqa
+        from_datetime = from_datetime.toPython().astimezone(timezone("Asia/Seoul"))  # noqa
+        to_datetime = to_datetime.toPython().astimezone(timezone("Asia/Seoul"))  # noqa
 
         result_df = result_df.query(
-            '@from_datetime <= 주문시간 <= @to_datetime'
+            "@from_datetime <= 주문시간 <= @to_datetime"
         )
 
-        # index 정리 asdf한글 이제 gm  GG adgasdgasdfasdf시발
         result_df = result_df.reset_index(drop=True)
         return result_df
 
     def update_model(self):
         if self.dm.order_history_df is not None:
             filterd_df = self.filtering_df(self.dm.order_history_df)
-            self.dm.asset_period_pnl_df = self.dm.create_asset_period_pnl_df(filterd_df)
+            self.dm.asset_period_pnl_df, since, pnl_krw, pnl_btc = self.dm.create_asset_period_pnl_df(filterd_df)
+
+            self.pnl_since.setText("SINCE: " + str(since))
+            self.pnl_krw_layout.setText("KRW: " + "{:,}".format(pnl_krw))
+            self.pnl_btc_layout.setText("BTC: " + "{:,}".format(pnl_btc))
+
             model = PeriodPnLPandasModel(self.dm.asset_period_pnl_df)
             self.period_pnl_table_view.setModel(model)
