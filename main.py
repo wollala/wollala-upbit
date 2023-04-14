@@ -96,6 +96,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.program_info_dialog.show()
 
     @QtCore.Slot()
+    def model_Updated(self, first_order_day, last_order_day, pnl_krw, pnl_btc):
+        self.calculate_console_widget.append("========  수익률  ========")
+        self.calculate_console_widget.append(f'기간 : <b><font color="#f3f3f4">{first_order_day.strftime("%Y-%m-%d %H:%M:%S")}</font></b> ~ <b><font color="#f3f3f4">{last_order_day.strftime("%Y-%m-%d %H:%M:%S")}</font></b>'
+                                             f' ({last_order_day - first_order_day})')
+        self.calculate_console_widget.append(f'KRW   : <b><font color="#f3f3f4">{pnl_krw:>,.0f}</font></b> ￦')
+        self.calculate_console_widget.append(f'BTC   : <b><font color="#f3f3f4">{pnl_btc:>,.8f}</font></b> btc')
+
+    @QtCore.Slot()
     def krw_sum_finished(self, df, result):
         df = df.reset_index(drop=True)
         result = f'{result:,.0f}' if result % 1 == 0 else f'{result:,.8f}'
@@ -250,6 +258,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 코인별 수익률 Widget
         self.period_pnl_widget = PeriodPnLWidget(parent=self)
         self.period_pnl_widget.period_pnl_table_view.sumFinished.connect(self.sum_finished)
+        self.period_pnl_widget.modelUpdated.connect(self.model_Updated)
 
         # Layout
         mid_tab_widget = QtWidgets.QTabWidget(parent=self)
@@ -275,6 +284,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "background-color: rgb(34, 40, 64);"
             "color: rgb(157, 159, 170)"
         )
+        self.calculate_console_widget.setFont(QtGui.QFont('Consolas', 11))
         self.calculate_console_widget.setAcceptRichText(True)
         bottom_frame = QtWidgets.QFrame(parent=self)
         bottom_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
@@ -287,7 +297,7 @@ class MainWindow(QtWidgets.QMainWindow):
         splitter.addWidget(mid_tab_widget)
         splitter.addWidget(bottom_frame)
         splitter.setHandleWidth(5)
-        splitter.setSizes([300, 600, 100])
+        splitter.setSizes([300, 600, 125])
 
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(splitter)

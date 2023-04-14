@@ -198,7 +198,8 @@ class DataManager(QtCore.QObject, metaclass=Singleton):
         pnl_krw = 0
         pnl_btc = 0
 
-        since = filterd_order_history_df["주문시간"].sort_values().iloc[0]
+        first_order_day = filterd_order_history_df["주문시간"].sort_values().iloc[0]
+        last_order_day = filterd_order_history_df["주문시간"].sort_values().iloc[-1]
 
         result_df = pd.DataFrame(
             columns=["마켓", "총 매수수량", "총 매도수량", "미실현수량", "총 매수금액", "총 매도금액", "매수 평단가", "매도 평단가",
@@ -230,4 +231,4 @@ class DataManager(QtCore.QObject, metaclass=Singleton):
         except Exception as e:
             logging.exception(e)
         finally:
-            return result_df, since, pnl_krw, pnl_btc
+            return result_df, first_order_day, last_order_day, pnl_krw, pnl_btc

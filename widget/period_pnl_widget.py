@@ -9,6 +9,8 @@ from widget.period_pnl_table_view import PeriodPnLTableView
 
 
 class PeriodPnLWidget(QtWidgets.QWidget):
+    modelUpdated = QtCore.Signal(pd.Timestamp, pd.Timestamp, float, float)
+
     def __init__(self, parent=None):
         super(PeriodPnLWidget, self).__init__(parent=parent)
         self.dm = DataManager()
@@ -46,19 +48,10 @@ class PeriodPnLWidget(QtWidgets.QWidget):
         self.period_pnl_table_view.setColumnWidth(8, 150)  # 실현손익
         self.period_pnl_table_view.setColumnWidth(9, 70)  # 수익률
 
-        self.pnl_title = QtWidgets.QLabel("[PNL]")
-        self.pnl_since = QtWidgets.QLabel("SINCE: ")
-        self.pnl_krw_layout = QtWidgets.QLabel("KRW: " + str(0), self)
-        self.pnl_btc_layout = QtWidgets.QLabel("BTC: " + str(0), self)
-
         # 레이아웃
         self.main_layout = QtWidgets.QVBoxLayout()
         self.main_layout.addWidget(self.date_filter_widget)
         self.main_layout.addWidget(self.period_pnl_table_view)
-        self.main_layout.addWidget(self.pnl_title)
-        self.main_layout.addWidget(self.pnl_since)
-        self.main_layout.addWidget(self.pnl_krw_layout)
-        self.main_layout.addWidget(self.pnl_btc_layout)
         self.setLayout(self.main_layout)
 
     @property
@@ -99,11 +92,8 @@ class PeriodPnLWidget(QtWidgets.QWidget):
     def update_model(self):
         if self.dm.order_history_df is not None:
             filterd_df = self.filtering_df(self.dm.order_history_df)
-            self.dm.asset_period_pnl_df, since, pnl_krw, pnl_btc = self.dm.create_asset_period_pnl_df(filterd_df)
-
-            self.pnl_since.setText("SINCE: " + str(since))
-            self.pnl_krw_layout.setText("KRW: " + "{:,}".format(pnl_krw))
-            self.pnl_btc_layout.setText("BTC: " + "{:,}".format(pnl_btc))
+            self.dm.asset_period_pnl_df, first_order_day, last_order_day, pnl_krw, pnl_btc = self.dm.create_asset_period_pnl_df(filterd_df)
 
             model = PeriodPnLPandasModel(self.dm.asset_period_pnl_df)
             self.period_pnl_table_view.setModel(model)
+            self.modelUpdated.emit(first_order_day, last_order_day, pnl_krw, pnl_btc)
