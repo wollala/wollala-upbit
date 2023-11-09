@@ -1,12 +1,14 @@
-
 # WOLLALA-UPBIT
 ![Generic badge](https://img.shields.io/badge/python-3.11-green.svg) 
 ![Generic badge](https://img.shields.io/badge/pyside-6-green.svg)
+
+![image](https://github.com/wollala/wollala-upbit/assets/16458486/66754a35-e029-45a6-8dbd-3db682779732)
 
 - wollala-upbit은 upbit의 거래내역을 정리해서 보여줍니다.
   - 부분체결로 이루어진 거래를 정리해서 보여줍니다.
 - upbit의 자산내역을 정리해서 보여줍니다.
 - 간단한 거래내역간의 산술기능을 제공합니다.
+
 ---
 > **WARNING**: Upbit api key 정보를 저장하고 있는 '**config.json**' 파일은 절대 공유하시면 안됩니다.
 ---
